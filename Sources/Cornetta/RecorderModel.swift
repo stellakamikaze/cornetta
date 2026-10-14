@@ -42,6 +42,9 @@ final class RecorderModel: ObservableObject {
         UpdateManager.shared.onUpdateFound = { [weak self] version in
             self?.announceUpdate(version)
         }
+        Library.shared.onTranscriptReady = { [weak self] recording in
+            self?.announceTranscript(recording)
+        }
     }
 
     var elapsedText: String {
@@ -64,7 +67,7 @@ final class RecorderModel: ObservableObject {
         let micAllowed = await CallRecorder.requestMicrophoneAccess()
         Diagnostics.log("Permesso microfono: \(micAllowed)")
         let url = FileNaming.recordingURL(in: FileNaming.defaultDirectory)
-        let recorder = CallRecorder(outputURL: url)
+        let recorder = CallRecorder(outputURL: url, tracksDirectory: Library.shared.tracksDirectory(for: url))
         recorder.onEvent = { [weak self] event in
             Task { @MainActor in self?.handle(event) }
         }
@@ -101,6 +104,7 @@ final class RecorderModel: ObservableObject {
         lastFile = recorder.outputURL
         finish()
         message = "Salvata: \(recorder.outputURL.lastPathComponent)"
+        Library.shared.recordingFinished(recorder.outputURL)
         if let version = pendingUpdateNotice {
             pendingUpdateNotice = nil
             announceUpdate(version)
@@ -233,6 +237,22 @@ final class RecorderModel: ObservableObject {
             onPrimary: { [weak self] in self?.closeNotice(); UpdateManager.shared.installOrCheck() },
             onSecondary: { [weak self] in self?.closeNotice() }))
         NSSound(named: "Glass")?.play()
+    }
+
+    // MARK: - Trascrizioni
+
+    private func announceTranscript(_ recording: Library.Recording) {
+        guard !isRecording, noticeKind == nil || noticeKind == "transcript" else { return }
+        showNotice(kind: "transcript", NoticeView(
+            icon: "text.bubble.fill", tint: Color(red: 0.11, green: 0.50, blue: 0.24),
+            title: "Trascrizione pronta",
+            message: "\(Library.shared.title(for: recording)) è trascritta, con la tua voce e quella degli altri separate.",
+            primary: "Apri", secondary: "Chiudi",
+            onPrimary: { [weak self] in self?.closeNotice(); LibraryWindow.show(select: recording.id) },
+            onSecondary: { [weak self] in self?.closeNotice() }))
+        DispatchQueue.main.asyncAfter(deadline: .now() + 20) { [weak self] in
+            if self?.noticeKind == "transcript" { self?.closeNotice() }
+        }
     }
 
     // MARK: - Avvisi

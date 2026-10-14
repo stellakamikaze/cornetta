@@ -57,6 +57,8 @@
         "Propone di registrare quando inizia una chiamata",
         "Pannello con tempo e livelli durante la registrazione",
         "Livella la tua voce al volume della chiamata",
+        "Trascrive ogni chiamata sul Mac, separando la tua voce da quella degli altri",
+        "Finestra Registrazioni con ricerca e ascolto dal punto scelto",
         "File .m4a in Musica › Cornetta",
         "Aggiornamenti automatici",
         "Nessun account, nessun driver audio"
@@ -87,6 +89,7 @@
         { "@type": "Question", "name": "Con quali app funziona?", "acceptedAnswer": { "@type": "Answer", "text": "Con qualunque app che usa il microfono e l'audio del Mac: WhatsApp, FaceTime, Google Meet, Zoom, Microsoft Teams, Slack, Discord, Telegram, Skype e le chiamate dal browser." } },
         { "@type": "Question", "name": "In Italia è legale registrare una chiamata?", "acceptedAnswer": { "@type": "Answer", "text": "Registrare una conversazione a cui partecipi è lecito per uso personale, anche senza avvisare: la Corte di Cassazione lo ha confermato più volte. Diffondere la registrazione senza il consenso delle altre persone invece non è lecito. In altri paesi le regole cambiano." } },
         { "@type": "Question", "name": "Serve installare BlackHole o un altro driver audio?", "acceptedAnswer": { "@type": "Answer", "text": "No. Cornetta usa la funzione di macOS che permette di registrare l'audio di sistema (process tap di Core Audio, da macOS 14.2). Non installa driver e non cambia le impostazioni audio." } },
+        { "@type": "Question", "name": "Cornetta trascrive le chiamate?", "acceptedAnswer": { "@type": "Answer", "text": "Sì, su macOS 26 o successivo. A fine registrazione Cornetta trascrive la chiamata sul Mac con il riconoscimento vocale di Apple, separa la tua voce da quella degli altri e salva il testo anche come file .md accanto all'audio. Niente viene inviato su internet." } },
         { "@type": "Question", "name": "Dove finiscono le registrazioni?", "acceptedAnswer": { "@type": "Answer", "text": "Nella cartella Musica › Cornetta, in formato .m4a (AAC, 48 kHz, stereo). Le registrazioni restano sul tuo Mac: Cornetta non le invia a nessuno." } },
         { "@type": "Question", "name": "Funziona su iPhone o Android?", "acceptedAnswer": { "@type": "Answer", "text": "No. iOS non dà a nessuna app l'audio delle chiamate, e Android lo blocca per le app normali dalla versione 10. Cornetta funziona sul computer." } },
         { "@type": "Question", "name": "Perché macOS dice che non può verificare lo sviluppatore?", "acceptedAnswer": { "@type": "Answer", "text": "Cornetta è gratuita e non è distribuita dall'App Store, quindi macOS la blocca al primo avvio. Apri Impostazioni di Sistema › Privacy e sicurezza e premi Apri comunque. Serve una volta sola." } }
@@ -116,7 +119,7 @@
   <section class="hero" aria-labelledby="titolo">
     <div class="wrap">
       <h1 id="titolo">Registra le chiamate dal Mac.</h1>
-      <p class="lede">Con <strong>qualunque app</strong>: WhatsApp, FaceTime, Meet, Zoom, Teams. La tua voce e quella degli altri nello stesso file. <strong>Gratis</strong>, senza account.</p>
+      <p class="lede">Con <strong>qualunque app</strong>: WhatsApp, FaceTime, Meet, Zoom, Teams. La tua voce e quella degli altri nello stesso file, con la <strong>trascrizione</strong>. <strong>Gratis</strong>, senza account.</p>
       <div class="cta">
         <a class="btn btn-primary" href="/download" data-download-primary>
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m0 0-4-4m4 4 4-4M4 16.5h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -183,6 +186,20 @@
       </div>
 
       <div class="feature flip">
+        <div class="feature-text">
+          <h3>Ogni chiamata, trascritta sul Mac</h3>
+          <p>Quando fermi la registrazione, Cornetta la trascrive da sola, senza mandare niente su internet. Usa il riconoscimento vocale di macOS: una chiamata di mezz'ora richiede meno di un minuto.</p>
+          <ul>
+            <li>La tua voce e quella degli altri separate: «Tu» e «Altri»</li>
+            <li>Clicca un orario e ascolti da quel punto</li>
+            <li>Cerca una parola in tutte le chiamate</li>
+            <li>Il testo si salva anche come file accanto all'audio</li>
+          </ul>
+        </div>
+        <div class="feature-media"><img src="/img/library.webp" alt="Finestra Registrazioni di Cornetta con una chiamata di esempio trascritta: battute di Tu e Altri con l'orario, pulsanti Copia testo ed Esporta." width="700" height="482" loading="lazy"></div>
+      </div>
+
+      <div class="feature">
         <div class="feature-text">
           <h3>Si aggiorna da sola</h3>
           <p>Quando esce una versione nuova, Cornetta te lo dice con un avviso ben visibile. Premi Aggiorna ora: in pochi secondi si riapre aggiornata, con i permessi che avevi già dato.</p>
@@ -270,6 +287,7 @@
         <details><summary>Con quali app funziona?</summary><div class="answer"><p>Con qualunque app che usa il microfono e l'audio del Mac: WhatsApp, FaceTime, Google Meet, Zoom, Microsoft Teams, Slack, Discord, Telegram, Skype e le chiamate dal browser.</p></div></details>
         <details><summary>In Italia è legale registrare una chiamata?</summary><div class="answer"><p>Registrare una conversazione a cui partecipi è lecito per uso personale, anche senza avvisare: la Corte di Cassazione lo ha confermato più volte.</p><p>Diffondere la registrazione senza il consenso delle altre persone invece non è lecito. In altri paesi le regole cambiano: informati prima di registrare.</p></div></details>
         <details><summary>Serve installare BlackHole o un altro driver audio?</summary><div class="answer"><p>No. Cornetta usa la funzione di macOS che permette di registrare l'audio di sistema (i process tap di Core Audio, da macOS 14.2). Non installa driver e non cambia le impostazioni audio.</p></div></details>
+        <details><summary>Cornetta trascrive le chiamate?</summary><div class="answer"><p>Sì, su macOS 26 o successivo. Quando fermi la registrazione, Cornetta trascrive la chiamata sul Mac con il riconoscimento vocale di Apple, separa la tua voce da quella degli altri e salva il testo anche come file .md accanto all'audio. Niente viene inviato su internet.</p><p>La trovi nella finestra <strong>Registrazioni</strong>, dal menu della cornetta o con <span class="key">⌘ T</span>.</p></div></details>
         <details><summary>Dove finiscono le registrazioni?</summary><div class="answer"><p>Nella cartella <strong>Musica › Cornetta</strong>, in formato .m4a (AAC, 48 kHz, stereo), con data e ora nel nome. Restano sul tuo Mac: Cornetta non le invia a nessuno.</p></div></details>
         <details><summary>Funziona con le AirPods?</summary><div class="answer"><p>Sì. Durante le chiamate però macOS usa il profilo Bluetooth per la voce, che ha una qualità più bassa: vale per qualunque registratore. Se puoi, usa il microfono del Mac.</p></div></details>
         <details><summary>Funziona su iPhone o Android?</summary><div class="answer"><p>No. iOS non dà a nessuna app l'audio delle chiamate, e Android lo blocca per le app normali dalla versione 10. Cornetta funziona sul computer.</p></div></details>

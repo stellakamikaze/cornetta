@@ -57,6 +57,8 @@ struct MenuContent: View {
             Button("Apri le impostazioni del microfono…") { model.openMicrophoneSettings() }
         }
         Divider()
+        Button("Registrazioni e trascrizioni…") { LibraryWindow.show() }
+            .keyboardShortcut("t")
         Button("Apri cartella registrazioni") { model.openFolder() }
         if model.lastFile != nil {
             Button("Mostra l'ultima registrazione") { model.revealLastFile() }
@@ -65,6 +67,9 @@ struct MenuContent: View {
         Button("Invia un feedback…") { model.openFeedback() }
         Toggle("Mostra il pannello durante la registrazione", isOn: $model.showOverlay)
         Toggle("Proponi di registrare quando inizia una chiamata", isOn: $model.proposeOnCall)
+        if SpeechEngine.isAvailable {
+            Toggle("Trascrivi ogni chiamata sul Mac", isOn: Library.shared.$autoTranscribe)
+        }
         Button("Controlla aggiornamenti…") { updates.installOrCheck() }
         Divider()
         Text("Cornetta \(AppInfo.version)")
@@ -80,12 +85,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         Diagnostics.log("Avvio Cornetta \(AppInfo.version) da \(Bundle.main.bundlePath)")
         MainActor.assumeIsolated {
+            if let index = CommandLine.arguments.firstIndex(of: "--demo-library"), index + 1 < CommandLine.arguments.count {
+                let root = URL(fileURLWithPath: CommandLine.arguments[index + 1], isDirectory: true)
+                Library.shared.useDemoFolders(recordings: root.appendingPathComponent("Registrazioni"),
+                                              support: root.appendingPathComponent("Supporto"))
+                // Dopo l'avvio di SwiftUI: aperta prima, la finestra non arriva sullo schermo.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { LibraryWindow.show() }
+                return
+            }
             if CommandLine.arguments.contains("--demo") {
                 RecorderModel.shared.showDemo()
                 return
             }
             AppMover.offerMoveIfNeeded()
             _ = RecorderModel.shared
+            Library.shared.reload()
         }
     }
 

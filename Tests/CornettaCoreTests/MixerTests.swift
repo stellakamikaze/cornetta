@@ -56,6 +56,13 @@ struct FileNamingTests {
         #expect(url.lastPathComponent == "Chiamata 2026-10-14 09.05.m4a")
     }
 
+    @Test func dateIsReadBackFromTheFileName() {
+        let date = FileNaming.date(fromFileName: "Chiamata 2026-10-14 09.05 (2).m4a")
+        let parts = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: date!)
+        #expect(parts.year == 2026 && parts.month == 10 && parts.day == 14 && parts.hour == 9 && parts.minute == 5)
+        #expect(FileNaming.date(fromFileName: "intervista.m4a") == nil)
+    }
+
     @Test func existingFileIsNotOverwritten() {
         let taken: Set<String> = ["a.m4a", "Chiamata 2026-10-14 09.05.m4a", "Chiamata 2026-10-14 09.05 (2).m4a"]
         var parts = DateComponents()

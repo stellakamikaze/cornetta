@@ -7,6 +7,7 @@ Key facts:
 - How it works: Core Audio process taps (macOS 14.2+) capture system audio; the microphone and the tap share one private aggregate device, so both voices stay in sync. No BlackHole or virtual driver.
 - Output: .m4a (AAC, 48 kHz, stereo) in ~/Music/Cornetta, file named "Chiamata YYYY-MM-DD HH.MM.m4a".
 - Your voice is levelled up to +24 dB to match the call; the boost pauses while the other person talks so speaker echo is not amplified.
+- Local transcription (macOS 26+): when a recording ends, Cornetta transcribes it on the Mac with Apple speech recognition (SpeechAnalyzer), labels lines as "Tu" (you) or "Altri" (others) from the separate tracks, removes speaker echo, and saves a Markdown file next to the audio. Recordings window with search and playback from any timestamp.
 - Detects when an app starts using the microphone and offers to record; suggests stopping when the call ends.
 - Floating panel while recording: elapsed time, level meters for you and the others, Stop, Feedback.
 - Automatic updates (Sparkle, EdDSA-signed) with a visible in-app notice.

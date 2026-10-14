@@ -27,4 +27,14 @@ public enum FileNaming {
         }
         return candidate
     }
+
+    /// Data e ora lette dal nome «Chiamata 2026-10-14 09.12» (anche con « (2)» in fondo). Nil se il nome è diverso.
+    public static func date(fromFileName name: String) -> Date? {
+        let pattern = #"(\d{4}-\d{2}-\d{2} \d{2}\.\d{2})"#
+        guard let range = name.range(of: pattern, options: .regularExpression) else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd HH.mm"
+        return formatter.date(from: String(name[range]))
+    }
 }

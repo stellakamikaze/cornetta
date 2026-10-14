@@ -45,7 +45,8 @@ enum HeadlessRecording {
                 report["ciclo\(cycle)"] = error.localizedDescription
             }
         }
-        let recorder = CallRecorder(outputURL: output, debugDirectory: debug)
+        let tracks = value("--tracks").map { URL(fileURLWithPath: $0, isDirectory: true) }
+        let recorder = CallRecorder(outputURL: output, debugDirectory: debug, tracksDirectory: tracks)
         do {
             try recorder.start(useMicrophone: micAllowed)
             report["microphone"] = recorder.microphoneName ?? "nessuno"

@@ -41,6 +41,7 @@ public final class CallRecorder {
     }
 
     private let debugDirectory: URL?
+    private let tracksDirectory: URL?
     private let writerQueue = DispatchQueue(label: "com.stellakamikaze.cornetta.writer", qos: .userInitiated)
     private var writer: TrackWriter?
     private var tap: SystemAudioTap?
@@ -55,9 +56,10 @@ public final class CallRecorder {
     /// Livelli in tempo reale di microfono e chiamata.
     public let meter = LevelMeter()
 
-    public init(outputURL: URL, debugDirectory: URL? = nil) {
+    public init(outputURL: URL, debugDirectory: URL? = nil, tracksDirectory: URL? = nil) {
         self.outputURL = outputURL
         self.debugDirectory = debugDirectory
+        self.tracksDirectory = tracksDirectory
     }
 
     deinit { stop() }
@@ -74,7 +76,7 @@ public final class CallRecorder {
     /// Avvia la registrazione. Va chiamato dalla coda principale.
     public func start(useMicrophone: Bool = true) throws {
         guard !isRunning else { return }
-        writer = try TrackWriter(outputURL: outputURL, debugDirectory: debugDirectory, meter: meter)
+        writer = try TrackWriter(outputURL: outputURL, debugDirectory: debugDirectory, tracksDirectory: tracksDirectory, meter: meter)
         do {
             tap = try SystemAudioTap()
             try startCapture(useMicrophone: useMicrophone)

@@ -27,6 +27,17 @@ Se hai negato un permesso, riattivalo in **Impostazioni di Sistema → Privacy e
 
 Se a metà chiamata cambi microfono (per esempio colleghi le AirPods), Cornetta passa al nuovo microfono e continua sullo stesso file.
 
+## Trascrizione
+
+Da macOS 26 Cornetta trascrive ogni chiamata sul Mac, con il riconoscimento vocale di Apple (SpeechAnalyzer): niente esce dal computer.
+
+- Durante la registrazione salva due tracce separate in `~/Library/Application Support/Cornetta/Tracce/`: «Tu» (microfono) e «Altri» (audio di sistema). Le voci si attribuiscono dalla traccia, senza indovinare.
+- Allo stop la trascrizione parte da sola. L'eco degli altoparlanti che rientra nel microfono viene tolta.
+- Il testo si salva in JSON (`~/Library/Application Support/Cornetta/Trascrizioni/`) e come `.md` accanto all'audio.
+- La finestra **Registrazioni** (⌘T dal menu) ha l'elenco, la ricerca, il testo diviso per voce e l'ascolto dal punto scelto.
+
+Prova da riga di comando: `build/Cornetta.app/Contents/MacOS/Cornetta --transcribe file.m4a [--tracks cartella]`. Libreria dimostrativa: `python3 site-src/make-demo-library.py /tmp/demo && open -n build/Cornetta.app --args --demo-library /tmp/demo`.
+
 ## Come funziona
 
 Cornetta usa i *process tap* di Core Audio (macOS 14.2+): legge tutto l'audio che il Mac riproduce, senza driver virtuali come BlackHole e senza registrare lo schermo. Il tap e il microfono stanno nello stesso dispositivo aggregato privato, quindi le due voci condividono lo stesso orologio e restano sincronizzate.
