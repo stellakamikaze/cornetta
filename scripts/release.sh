@@ -17,6 +17,12 @@ git rev-parse "v$VERSION" >/dev/null 2>&1 && { echo "Il tag v$VERSION esiste gi�
 
 scripts/test.sh >/dev/null
 VERSION="$VERSION" scripts/build-dmg.sh
+# Mai pubblicare una firma ad-hoc: chi aggiorna perderebbe i permessi e Sparkle rifiuterebbe l'app.
+AUTH=$(codesign -dvv build/Cornetta.app 2>&1 | grep '^Authority=' | head -1 || true)
+case "$AUTH" in
+  "Authority=Cornetta Self-Signed"|"Authority=Developer ID Application"*) echo "→ Firma: ${AUTH#Authority=}" ;;
+  *) echo "Firma sbagliata (${AUTH:-ad-hoc}): manca il certificato «Cornetta Self-Signed» nel portachiavi."; exit 1 ;;
+esac
 
 mkdir -p "$DOWNLOADS"
 cp "dist/Cornetta-$VERSION.dmg" "$DOWNLOADS/"

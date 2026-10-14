@@ -19,6 +19,9 @@ final class RecorderModel: ObservableObject {
     @AppStorage("proposeOnCall") var proposeOnCall = true
 
     private var recorder: CallRecorder?
+    private var isStarting = false
+    private var systemPeak: Float = 0
+    private var silenceWarned = false
     private var startedAt: Date?
     private var meterTimer: Timer?
     private var callTimer: Timer?
@@ -60,14 +63,17 @@ final class RecorderModel: ObservableObject {
     }
 
     func start() async {
-        guard !isRecording else { return }
+        guard !isRecording, !isStarting else { return }
+        isStarting = true
+        defer { isStarting = false }
         message = nil
         closeNotice()
         Diagnostics.log("Avvio richiesto")
         let micAllowed = await CallRecorder.requestMicrophoneAccess()
         Diagnostics.log("Permesso microfono: \(micAllowed)")
         let url = FileNaming.recordingURL(in: FileNaming.defaultDirectory)
-        let recorder = CallRecorder(outputURL: url, tracksDirectory: Library.shared.tracksDirectory(for: url))
+        let recorder = CallRecorder(outputURL: url, workingDirectory: Library.shared.workingDirectory(for: url),
+                                    tracksDirectory: SpeechEngine.isAvailable ? Library.shared.tracksDirectory(for: url) : nil)
         recorder.onEvent = { [weak self] event in
             Task { @MainActor in self?.handle(event) }
         }
@@ -89,6 +95,9 @@ final class RecorderModel: ObservableObject {
         startedAt = Date()
         elapsed = 0
         lastCallAppSeenAt = callAppsSeen.isEmpty ? nil : Date()
+        systemPeak = 0
+        silenceWarned = false
+        meterTimer?.invalidate()
         meterTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.tick() }
         }
@@ -97,18 +106,38 @@ final class RecorderModel: ObservableObject {
 
     func stop() {
         guard let recorder else { return }
+        recorder.onFinalized = { [weak self] result in
+            switch result {
+            case .success(let saved):
+                self?.lastFile = saved.recording
+                self?.message = "Salvata: \(saved.recording.lastPathComponent)"
+                Library.shared.recordingFinished(saved.recording)
+            case .failure(let error):
+                self?.message = "Salvataggio non riuscito: \(error.localizedDescription). L'audio resta al sicuro e viene recuperato al prossimo avvio."
+            }
+        }
         let stats = recorder.stop()
         Diagnostics.log(String(format: "Stop: %.2f s scritti, %.2f s dall'avvio, riavvii %d, guadagno voce %.1f",
                                stats.seconds, Date().timeIntervalSince(startedAt ?? Date()), recorder.restartCount,
                                recorder.meter.micGain))
-        lastFile = recorder.outputURL
         finish()
-        message = "Salvata: \(recorder.outputURL.lastPathComponent)"
-        Library.shared.recordingFinished(recorder.outputURL)
+        message = "Salvo la registrazione…"
         if let version = pendingUpdateNotice {
             pendingUpdateNotice = nil
             announceUpdate(version)
         }
+    }
+
+    /// All'uscita dall'app: chiude i file senza convertire. Il prossimo avvio recupera la registrazione.
+    func stopForTermination() {
+        guard let recorder else { return }
+        recorder.stopForTermination()
+        Diagnostics.log("Uscita durante una registrazione: la recupero al prossimo avvio")
+        finish()
+    }
+
+    func noteRecovered(_ name: String) {
+        message = "Recuperata una registrazione interrotta: \(name)"
     }
 
     func dismissCallEnded() {
@@ -122,6 +151,34 @@ final class RecorderModel: ObservableObject {
         let levels = recorder.meter.levels
         micLevel = levels.mic
         systemLevel = levels.system
+        systemPeak = max(systemPeak, levels.system)
+        checkAudioArrives(recorder)
+    }
+
+    /// Se macOS non dà l'audio (permesso negato, dispositivo bloccato), lo si dice subito, non a fine chiamata.
+    private func checkAudioArrives(_ recorder: CallRecorder) {
+        guard !silenceWarned else { return }
+        let noAudio = elapsed > 8 && (recorder.callbackCount == 0 || recorder.restartCount >= 3)
+        let noOthers = elapsed > 25 && systemPeak == 0 && !callAppsSeen.isEmpty
+        guard noAudio || noOthers else { return }
+        silenceWarned = true
+        Diagnostics.log(noAudio ? "Avviso: nessun audio in arrivo" : "Avviso: audio di sistema muto durante una chiamata")
+        showError(title: noAudio ? "Cornetta non riceve audio" : "Non sento la voce degli altri",
+                  message: noAudio
+                    ? "macOS non sta passando l'audio a Cornetta. Controlla in Impostazioni › Privacy e sicurezza che Cornetta possa usare microfono e audio di sistema."
+                    : "La chiamata è in corso ma l'audio di sistema è muto. Controlla in Impostazioni › Privacy e sicurezza › Registrazione schermo e audio di sistema che Cornetta sia attiva.")
+    }
+
+    private func showError(title: String, message: String) {
+        NSSound(named: "Basso")?.play()
+        showNotice(kind: "error", NoticeView(
+            icon: "exclamationmark.triangle.fill", tint: .orange, title: title, message: message,
+            primary: "Apri Impostazioni", secondary: "Chiudi",
+            onPrimary: { [weak self] in
+                self?.closeNotice()
+                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy") { NSWorkspace.shared.open(url) }
+            },
+            onSecondary: { [weak self] in self?.closeNotice() }))
     }
 
     private func handle(_ event: CallRecorder.Event) {
@@ -129,9 +186,9 @@ final class RecorderModel: ObservableObject {
         case .microphoneChanged(let name):
             microphoneName = name
         case .failure(let text):
-            if let recorder { lastFile = recorder.outputURL }
             finish()
             message = text
+            showError(title: "Registrazione interrotta", message: text + " Quello che era già registrato viene salvato.")
         }
     }
 

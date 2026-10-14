@@ -62,14 +62,31 @@ enum SpeechEngine {
     }
 
     /// Profilo di energia della traccia, per riportare gli orari all'inizio vero della voce.
+    /// Legge a blocchi da 1 s: un'ora di chiamata non finisce tutta in memoria.
     private static func voiceActivity(of url: URL) -> VoiceActivity? {
-        guard let file = try? AVAudioFile(forReading: url),
-              let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length)),
-              (try? file.read(into: buffer)) != nil, let data = buffer.floatChannelData else { return nil }
-        let frames = Int(buffer.frameLength), channels = Int(buffer.format.channelCount)
-        var mono = [Float](repeating: 0, count: frames)
-        for c in 0..<channels { for i in 0..<frames { mono[i] += data[c][i] / Float(channels) } }
-        return VoiceActivity(samples: mono, sampleRate: file.processingFormat.sampleRate)
+        guard let file = try? AVAudioFile(forReading: url) else { return nil }
+        let rate = file.processingFormat.sampleRate, window = max(1, Int(rate * 0.02))
+        let chunk = AVAudioFrameCount(window * 50)
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: chunk) else { return nil }
+        var levels: [Float] = []
+        while file.framePosition < file.length {
+            guard (try? file.read(into: buffer, frameCount: chunk)) != nil, buffer.frameLength > 0, let data = buffer.floatChannelData else { break }
+            let frames = Int(buffer.frameLength), channels = Int(buffer.format.channelCount)
+            var start = 0
+            while start < frames {
+                let end = min(start + window, frames)
+                var sum: Float = 0
+                for i in start..<end {
+                    var v: Float = 0
+                    for c in 0..<channels { v += data[c][i] }
+                    v /= Float(channels)
+                    sum += v * v
+                }
+                levels.append(sqrt(sum / Float(end - start)))
+                start = end
+            }
+        }
+        return VoiceActivity(levels: levels)
     }
 
     /// Divide il testo riconosciuto in frasi, usando l'orario di ogni parola.

@@ -29,8 +29,17 @@ enum AppMover {
             Diagnostics.log("Spostata in Applicazioni da \(source.path)")
             let configuration = NSWorkspace.OpenConfiguration()
             configuration.createsNewApplicationInstance = true
-            NSWorkspace.shared.openApplication(at: destination, configuration: configuration) { _, _ in
-                DispatchQueue.main.async { NSApp.terminate(nil) }
+            NSWorkspace.shared.openApplication(at: destination, configuration: configuration) { _, error in
+                DispatchQueue.main.async {
+                    if let error {
+                        let alert = NSAlert()
+                        alert.messageText = "Cornetta è in Applicazioni"
+                        alert.informativeText = "Aprila da lì con un doppio clic. (\(error.localizedDescription))"
+                        alert.runModal()
+                    } else {
+                        NSApp.terminate(nil)
+                    }
+                }
             }
         } catch {
             let failure = NSAlert()

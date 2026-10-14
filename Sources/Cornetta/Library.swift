@@ -48,6 +48,38 @@ final class Library: ObservableObject {
         statuses = [:]
         reload()
     }
+    private var workingRoot: URL { support.appendingPathComponent("In corso", isDirectory: true) }
+
+    func workingDirectory(for recording: URL) -> URL {
+        workingRoot.appendingPathComponent(recording.deletingPathExtension().lastPathComponent, isDirectory: true)
+    }
+
+    /// Registrazioni interrotte da un crash o da uno spegnimento: le converte e le rimette in libreria.
+    func recoverInterruptedRecordings(onRecovered: @escaping (String) -> Void) {
+        let leftovers = RecordingFinalizer.leftovers(in: workingRoot)
+        guard !leftovers.isEmpty else { return }
+        let folder = recordingsFolder
+        for working in leftovers {
+            let name = working.lastPathComponent
+            let output = FileNaming.uniqueURL(in: folder, baseName: name)
+            let tracks = tracksDirectory(for: output)
+            Diagnostics.log("Recupero la registrazione interrotta: \(name)")
+            DispatchQueue.global(qos: .userInitiated).async {
+                let result = Result { try RecordingFinalizer.finalize(workingDirectory: working, output: output, tracksDirectory: tracks) }
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success(let r):
+                        Diagnostics.log(String(format: "Recuperata: %@ (%.0f s)", output.lastPathComponent, r.seconds))
+                        self.recordingFinished(output)
+                        onRecovered(output.lastPathComponent)
+                    case .failure(let error):
+                        Diagnostics.log("Recupero non riuscito per \(name): \(error.localizedDescription)")
+                    }
+                }
+            }
+        }
+    }
+
     private var tracksRoot: URL { support.appendingPathComponent("Tracce", isDirectory: true) }
     private var transcriptsRoot: URL { support.appendingPathComponent("Trascrizioni", isDirectory: true) }
 
@@ -94,6 +126,14 @@ final class Library: ObservableObject {
     func status(_ recording: Recording) -> Status { statuses[recording.id] ?? .notTranscribed }
 
     // MARK: - Trascrizione
+
+    /// Registrazioni con tracce ma senza trascrizione (app chiusa a metà): tornano in coda.
+    func resumePendingTranscriptions() {
+        guard autoTranscribe, SpeechEngine.isAvailable else { return }
+        for recording in recordings where recording.hasTracks && transcripts[recording.id] == nil {
+            enqueue(recording.url)
+        }
+    }
 
     /// Dopo lo stop: la registrazione entra nella libreria e, se l'opzione è attiva, in coda.
     func recordingFinished(_ url: URL) {
@@ -150,6 +190,7 @@ final class Library: ObservableObject {
                     Task { @MainActor in self?.statuses[id] = .transcribing(p, "Trascrivo…") }
                 }
             }
+            guard recordings.contains(where: { $0.id == id }) else { return }   // eliminata nel frattempo
             let transcript = Transcript(recording: id, engine: SpeechEngine.engineName, language: locale.identifier, segments: segments)
             try save(transcript, for: url)
             transcripts[id] = transcript
@@ -186,6 +227,7 @@ final class Library: ObservableObject {
 
     /// Sposta nel Cestino audio e trascrizione Markdown, e cancella tracce e JSON interni.
     func delete(_ recording: Recording) {
+        queue.removeAll { $0 == recording.url }
         let fm = FileManager.default
         try? fm.trashItem(at: recording.url, resultingItemURL: nil)
         if fm.fileExists(atPath: markdownURL(for: recording.url).path) {

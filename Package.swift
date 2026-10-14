@@ -8,7 +8,7 @@ let package = Package(
         .executable(name: "Cornetta", targets: ["Cornetta"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.6.4"),
+        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0"),
     ],
     targets: [
         .target(name: "CornettaCore"),

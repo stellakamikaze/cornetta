@@ -40,7 +40,11 @@ enum HeadlessRecording {
                 let end = Date().addingTimeInterval(seconds)
                 RunLoop.main.add(Timer(fire: end, interval: 0, repeats: false) { _ in }, forMode: .default)
                 while Date() < end { RunLoop.main.run(until: end) }
-                report["ciclo\(cycle)"] = "callbacks=\(extra.callbackCount) restarts=\(extra.restartCount) seconds=\(String(format: "%.2f", extra.stop().seconds))"
+                var done = false
+                extra.onFinalized = { _ in done = true }
+                let seconds = extra.stop().seconds
+                while !done { RunLoop.main.run(until: Date().addingTimeInterval(0.1)) }
+                report["ciclo\(cycle)"] = "callbacks=\(extra.callbackCount) restarts=\(extra.restartCount) seconds=\(String(format: "%.2f", seconds))"
             } catch {
                 report["ciclo\(cycle)"] = error.localizedDescription
             }
@@ -58,7 +62,13 @@ enum HeadlessRecording {
             report["wallSeconds"] = String(format: "%.2f", seconds - end.timeIntervalSinceNow)
             report["callbacks"] = String(recorder.callbackCount)
             report["restarts"] = String(recorder.restartCount)
+            var finalized = false
+            recorder.onFinalized = { result in
+                if case .failure(let error) = result { report["error"] = error.localizedDescription }
+                finalized = true
+            }
             let stats = recorder.stop()
+            while !finalized { RunLoop.main.run(until: Date().addingTimeInterval(0.1)) }
             report["seconds"] = String(format: "%.2f", stats.seconds)
             report["micPeakRMS"] = String(format: "%.5f", stats.micPeakRMS)
             report["systemPeakRMS"] = String(format: "%.5f", stats.systemPeakRMS)

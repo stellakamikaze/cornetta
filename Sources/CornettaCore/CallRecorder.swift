@@ -53,11 +53,19 @@ public final class CallRecorder {
     private var lastCallbackCount = 0
     private var usesMicrophone = true
     public private(set) var restartCount = 0
+    private var rebuildFailures = 0
     /// Livelli in tempo reale di microfono e chiamata.
     public let meter = LevelMeter()
 
-    public init(outputURL: URL, debugDirectory: URL? = nil, tracksDirectory: URL? = nil) {
+    /// Cartella dei CAF durante la registrazione. Se l'app si chiude male, resta lì per il recupero.
+    public let workingDirectory: URL
+    /// Chiamato sulla coda principale quando il file .m4a definitivo è pronto (o la conversione fallisce).
+    public var onFinalized: ((Result<RecordingFinalizer.Result, Error>) -> Void)?
+
+    public init(outputURL: URL, workingDirectory: URL? = nil, debugDirectory: URL? = nil, tracksDirectory: URL? = nil) {
         self.outputURL = outputURL
+        self.workingDirectory = workingDirectory ?? FileManager.default.temporaryDirectory
+            .appendingPathComponent("Cornetta-\(UUID().uuidString)", isDirectory: true)
         self.debugDirectory = debugDirectory
         self.tracksDirectory = tracksDirectory
     }
@@ -73,16 +81,41 @@ public final class CallRecorder {
         }
     }
 
+    /// Fa comparire subito la richiesta di macOS per la «Registrazione audio di sistema» con una cattura
+    /// di un secondo, così il primo avvio la chiede una volta e la prima chiamata vera non viene interrotta.
+    public static func primeSystemAudioPermission() async {
+        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
+            DispatchQueue.global(qos: .userInitiated).async {
+                defer { done.resume() }
+                guard let tap = try? SystemAudioTap() else { return }
+                defer { tap.destroy() }
+                guard let device = try? AggregateDevice(tap: tap, microphone: nil) else { return }
+                defer { device.destroy() }
+                var proc: AudioDeviceIOProcID?
+                guard AudioDeviceCreateIOProcIDWithBlock(&proc, device.deviceID, nil, { _, _, _, _, _ in }) == noErr,
+                      let proc else { return }
+                AudioDeviceStart(device.deviceID, proc)
+                Thread.sleep(forTimeInterval: 1)
+                AudioDeviceStop(device.deviceID, proc)
+                AudioDeviceDestroyIOProcID(device.deviceID, proc)
+            }
+        }
+    }
+
     /// Avvia la registrazione. Va chiamato dalla coda principale.
     public func start(useMicrophone: Bool = true) throws {
         guard !isRunning else { return }
-        writer = try TrackWriter(outputURL: outputURL, debugDirectory: debugDirectory, tracksDirectory: tracksDirectory, meter: meter)
+        writer = try TrackWriter(workingDirectory: workingDirectory, debugDirectory: debugDirectory,
+                                 withTracks: tracksDirectory != nil, meter: meter)
         do {
             tap = try SystemAudioTap()
             try startCapture(useMicrophone: useMicrophone)
         } catch {
             teardownCapture()
+            tap?.destroy()
+            tap = nil
             closeWriter()
+            try? FileManager.default.removeItem(at: workingDirectory)
             throw error
         }
         isRunning = true
@@ -102,7 +135,32 @@ public final class CallRecorder {
         teardownCapture()
         tap?.destroy()
         tap = nil
-        return closeWriter()
+        let stats = closeWriter()
+        finalize()
+        return stats
+    }
+
+    /// Ferma senza convertire: i CAF restano nella cartella di lavoro e li recupera il prossimo avvio.
+    /// Serve quando l'app sta per chiudersi e non c'è tempo per la conversione.
+    public func stopForTermination() {
+        guard isRunning else { return }
+        isRunning = false
+        watchdog?.invalidate()
+        stopListening()
+        teardownCapture()
+        tap?.destroy()
+        tap = nil
+        closeWriter()
+    }
+
+    private func finalize() {
+        // Il callback si tiene forte: chi ha avviato la registrazione può già aver rilasciato il registratore.
+        let working = workingDirectory, output = outputURL, tracks = tracksDirectory, callback = onFinalized
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result = Result { try RecordingFinalizer.finalize(workingDirectory: working, output: output, tracksDirectory: tracks) }
+            if case .failure(let error) = result { Diagnostics.log("Conversione non riuscita: \(error.localizedDescription)") }
+            DispatchQueue.main.async { callback?(result) }
+        }
     }
 
     // MARK: - Cattura
@@ -210,11 +268,17 @@ public final class CallRecorder {
         teardownCapture()
         do {
             try startCapture(useMicrophone: usesMicrophone)
+            rebuildFailures = 0
             if notifyMicrophone { onEvent?(.microphoneChanged(microphoneName)) }
         } catch {
-            let message = "Riavvio della cattura non riuscito: \(error.localizedDescription)"
-            stop()
-            onEvent?(.failure(message))
+            // Core Audio in transizione (cuffie scollegate, risveglio): non si ferma, riprova il watchdog.
+            rebuildFailures += 1
+            Diagnostics.log("Ricostruzione della cattura non riuscita (\(rebuildFailures)): \(error.localizedDescription)")
+            if rebuildFailures >= 15 {
+                let message = "Il dispositivo audio non risponde da 30 secondi: registrazione fermata e salvata."
+                stop()
+                onEvent?(.failure(message))
+            }
         }
     }
 

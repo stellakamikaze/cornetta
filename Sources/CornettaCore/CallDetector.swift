@@ -20,6 +20,7 @@ public enum CallDetector {
         "com.apple.SpeechRecognitionCore", "com.apple.dictation", "com.apple.DictationIM",
         "com.apple.accessibility", "com.apple.VoiceMemos", "com.apple.audio", "com.apple.coreaudio",
         "com.apple.controlcenter", "com.apple.systemsound", "com.apple.voicebankingd",
+        "com.stellakamikaze.cornetta",   // un'altra copia di Cornetta non è una chiamata
     ]
 
     /// Processi che usano il microfono adesso, letti da Core Audio (macOS 14+).

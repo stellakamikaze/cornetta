@@ -50,8 +50,12 @@ final class AggregateDevice {
             if channels.count >= leadingStreams + 1 { break }
             Thread.sleep(forTimeInterval: 0.05)
         }
+        guard channels.count >= leadingStreams + 1 else {
+            AudioHardwareDestroyAggregateDevice(id)
+            throw CoreAudioError("Il dispositivo audio non è ancora pronto", kAudioHardwareNotRunningError)
+        }
         streamChannels = channels
-        leadingStreamCount = min(leadingStreams, max(channels.count - 1, 0))
+        leadingStreamCount = leadingStreams
     }
 
     var sampleRate: Double {

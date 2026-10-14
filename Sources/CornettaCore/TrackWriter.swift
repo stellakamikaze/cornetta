@@ -17,25 +17,28 @@ final class TrackWriter {
     private(set) var stats = CallRecorder.Stats()
     let meter: LevelMeter
 
-    init(outputURL: URL, debugDirectory: URL?, tracksDirectory: URL? = nil, meter: LevelMeter) throws {
+    /// `workingDirectory` riceve i CAF durante la registrazione; li converte `RecordingFinalizer`.
+    init(workingDirectory: URL, debugDirectory: URL?, withTracks: Bool, meter: LevelMeter) throws {
         self.meter = meter
-        if let tracksDirectory {
-            try FileManager.default.createDirectory(at: tracksDirectory, withIntermediateDirectories: true)
-            meTrack = try SpeechTrack(url: tracksDirectory.appendingPathComponent(SpeechTrack.meName))
-            othersTrack = try SpeechTrack(url: tracksDirectory.appendingPathComponent(SpeechTrack.othersName))
+        try FileManager.default.createDirectory(at: workingDirectory, withIntermediateDirectories: true)
+        if withTracks {
+            meTrack = try SpeechTrack(url: workingDirectory.appendingPathComponent(RecordingFinalizer.meName))
+            othersTrack = try SpeechTrack(url: workingDirectory.appendingPathComponent(RecordingFinalizer.othersName))
         }
-        try FileManager.default.createDirectory(at: outputURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let settings: [String: Any] = [
-            AVFormatIDKey: kAudioFormatMPEG4AAC,
-            AVSampleRateKey: Self.fileSampleRate,
-            AVNumberOfChannelsKey: 2,
-            AVEncoderBitRateKey: 160_000,
-        ]
-        file = try AVAudioFile(forWriting: outputURL, settings: settings, commonFormat: .pcmFormatFloat32, interleaved: false)
+        file = try AVAudioFile(forWriting: workingDirectory.appendingPathComponent(RecordingFinalizer.mainName),
+                               settings: Self.pcmSettings(sampleRate: Self.fileSampleRate, channels: 2),
+                               commonFormat: .pcmFormatFloat32, interleaved: false)
         self.debugDirectory = debugDirectory
         if let debugDirectory {
             try FileManager.default.createDirectory(at: debugDirectory, withIntermediateDirectories: true)
         }
+    }
+
+    /// PCM 16 bit in CAF: se l'app si chiude di colpo, quello che è già scritto resta leggibile.
+    static func pcmSettings(sampleRate: Double, channels: Int) -> [String: Any] {
+        [AVFormatIDKey: kAudioFormatLinearPCM, AVSampleRateKey: sampleRate, AVNumberOfChannelsKey: channels,
+         AVLinearPCMBitDepthKey: 16, AVLinearPCMIsFloatKey: false, AVLinearPCMIsBigEndianKey: false,
+         AVLinearPCMIsNonInterleaved: false]
     }
 
     func write(mic: [[Float]], system: [[Float]], frameCount: Int, sampleRate: Double) throws {
@@ -61,9 +64,16 @@ final class TrackWriter {
 
         if let meTrack, let othersTrack {
             // Il microfono assente si scrive come silenzio: le due tracce restano allineate nel tempo.
-            try meTrack.append(leveledMic.first ?? [Float](repeating: 0, count: frameCount), sampleRate: sampleRate)
-            let othersMono = zip(systemStereo.left, systemStereo.right).map { ($0 + $1) / 2 }
-            try othersTrack.append(othersMono, sampleRate: sampleRate)
+            // Un errore sulle tracce spegne solo le tracce: la registrazione principale continua.
+            do {
+                try meTrack.append(leveledMic.first ?? [Float](repeating: 0, count: frameCount), sampleRate: sampleRate)
+                let othersMono = zip(systemStereo.left, systemStereo.right).map { ($0 + $1) / 2 }
+                try othersTrack.append(othersMono, sampleRate: sampleRate)
+            } catch {
+                Diagnostics.log("Tracce per la trascrizione disattivate: \(error.localizedDescription)")
+                self.meTrack = nil
+                self.othersTrack = nil
+            }
         }
 
         if let debugDirectory {
@@ -140,23 +150,17 @@ final class TrackWriter {
     }
 }
 
-/// Una traccia vocale mono a 16 kHz in AAC: abbastanza per la trascrizione, circa 0,25 MB al minuto.
+/// Una traccia vocale mono a 16 kHz per la trascrizione. In registrazione è PCM in CAF (resiste ai crash),
+/// poi `RecordingFinalizer` la porta in AAC (circa 0,25 MB al minuto).
 final class SpeechTrack {
-    static let meName = "tu.m4a"
-    static let othersName = "altri.m4a"
     static let sampleRate: Double = 16_000
 
     private let file: AVAudioFile
     private var converter: AVAudioConverter?
 
     init(url: URL) throws {
-        let settings: [String: Any] = [
-            AVFormatIDKey: kAudioFormatMPEG4AAC,
-            AVSampleRateKey: Self.sampleRate,
-            AVNumberOfChannelsKey: 1,
-            AVEncoderBitRateKey: 32_000,
-        ]
-        file = try AVAudioFile(forWriting: url, settings: settings, commonFormat: .pcmFormatFloat32, interleaved: false)
+        file = try AVAudioFile(forWriting: url, settings: TrackWriter.pcmSettings(sampleRate: Self.sampleRate, channels: 1),
+                               commonFormat: .pcmFormatFloat32, interleaved: false)
     }
 
     func append(_ samples: [Float], sampleRate: Double) throws {

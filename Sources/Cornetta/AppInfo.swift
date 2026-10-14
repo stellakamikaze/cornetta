@@ -34,7 +34,8 @@ enum AppInfo {
         if let log = try? String(contentsOf: Diagnostics.fileURL, encoding: .utf8) {
             lines += log.split(separator: "\n").suffix(120).map(String.init)
         }
-        return lines.joined(separator: "\n")
+        // Il nome utente nei percorsi non serve a capire un guasto.
+        return lines.joined(separator: "\n").replacingOccurrences(of: NSHomeDirectory(), with: "~")
     }
 }
 

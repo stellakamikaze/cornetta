@@ -28,6 +28,18 @@ public enum FileNaming {
         return candidate
     }
 
+    /// «<base>.m4a» nella cartella, con « (2)», « (3)» se il nome è già preso.
+    public static func uniqueURL(in directory: URL, baseName: String,
+                                 fileExists: (URL) -> Bool = { FileManager.default.fileExists(atPath: $0.path) }) -> URL {
+        var candidate = directory.appendingPathComponent("\(baseName).m4a")
+        var counter = 2
+        while fileExists(candidate) {
+            candidate = directory.appendingPathComponent("\(baseName) (\(counter)).m4a")
+            counter += 1
+        }
+        return candidate
+    }
+
     /// Data e ora lette dal nome «Chiamata 2026-10-14 09.12» (anche con « (2)» in fondo). Nil se il nome è diverso.
     public static func date(fromFileName name: String) -> Date? {
         let pattern = #"(\d{4}-\d{2}-\d{2} \d{2}\.\d{2})"#

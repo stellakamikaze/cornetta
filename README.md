@@ -71,9 +71,8 @@ Il log dell'app sta in `~/Library/Logs/Cornetta/cornetta.log`.
 
 ## Limiti noti
 
-- L'app ha una firma ad-hoc: a ogni nuova versione macOS chiede di nuovo i due permessi.
+- L'app non è notarizzata da Apple: al primo avvio serve «Apri comunque» in Impostazioni › Privacy e sicurezza. È firmata con un certificato proprio, sempre lo stesso: gli aggiornamenti non chiedono di nuovo i permessi.
 - Con le AirPods come microfono la qualità della chiamata scende (profilo Bluetooth per le chiamate). Vale per qualunque registratore.
-- La build universale (anche Mac Intel) richiede Xcode completo.
 
 ## Windows
 

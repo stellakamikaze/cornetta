@@ -70,6 +70,7 @@ struct MenuContent: View {
         if SpeechEngine.isAvailable {
             Toggle("Trascrivi ogni chiamata sul Mac", isOn: Library.shared.$autoTranscribe)
         }
+        Toggle("Apri all'accensione del Mac", isOn: Binding(get: { LaunchAtLogin.isEnabled }, set: { LaunchAtLogin.set($0) }))
         Button("Controlla aggiornamenti…") { updates.installOrCheck() }
         Divider()
         Text("Cornetta \(AppInfo.version)")
@@ -100,11 +101,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             AppMover.offerMoveIfNeeded()
             _ = RecorderModel.shared
             Library.shared.reload()
+            Library.shared.resumePendingTranscriptions()
+            Library.shared.recoverInterruptedRecordings { name in
+                RecorderModel.shared.noteRecovered(name)
+            }
+            if WelcomeWindow.shouldShow {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { WelcomeWindow.show() }
+            }
         }
+    }
+
+    /// Doppio clic sull'app già aperta: mostra la finestra Registrazioni invece di non fare niente.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        MainActor.assumeIsolated { LibraryWindow.show() }
+        return true
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         // Chiude il file anche se l'app esce durante una registrazione.
-        MainActor.assumeIsolated { RecorderModel.shared.stop() }
+        MainActor.assumeIsolated { RecorderModel.shared.stopForTermination() }
     }
 }

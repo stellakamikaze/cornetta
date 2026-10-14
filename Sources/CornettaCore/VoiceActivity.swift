@@ -7,6 +7,20 @@ public struct VoiceActivity {
     let levels: [Float]
     let threshold: Float
 
+    /// Livelli RMS già calcolati, una voce ogni `windowSeconds` (lettura a blocchi di file lunghi).
+    public init(levels: [Float], windowSeconds: Double = 0.02) {
+        self.windowSeconds = windowSeconds
+        self.levels = levels
+        self.threshold = Self.threshold(for: levels)
+    }
+
+    static func threshold(for levels: [Float]) -> Float {
+        let sorted = levels.sorted()
+        let speech = sorted.isEmpty ? 0 : sorted[min(sorted.count - 1, Int(Double(sorted.count) * 0.9))]
+        let floor = sorted.isEmpty ? 0 : sorted[Int(Double(sorted.count) * 0.2)]
+        return max(speech * 0.15, floor * 3, 0.002)
+    }
+
     /// `samples` mono, `sampleRate` in Hz. Finestre da 20 ms.
     public init(samples: [Float], sampleRate: Double, windowSeconds: Double = 0.02) {
         self.windowSeconds = windowSeconds

@@ -52,6 +52,11 @@ def get(name):
     return json.loads(wrangler("key", "get", name, "--text"))
 
 
+def safe(text):
+    """Toglie i caratteri di controllo: un feedback non può muovere il cursore o cambiare il terminale."""
+    return "".join(c for c in str(text) if c in "\n\t" or (c.isprintable() and not 0x202A <= ord(c) <= 0x202E and not 0x2066 <= ord(c) <= 0x2069))
+
+
 def set_status(item, record, status):
     metadata = dict(item.get("metadata") or {})
     metadata["status"] = status
@@ -59,7 +64,10 @@ def set_status(item, record, status):
         json.dump(record, f)
         path = f.name
     try:
-        wrangler("key", "put", item["name"], "--path", path, "--metadata", json.dumps(metadata))
+        # La scadenza a 90 giorni dalla ricezione resta anche dopo il cambio di stato.
+        received = time.mktime(time.strptime(record["receivedAt"][:19], "%Y-%m-%dT%H:%M:%S")) - time.timezone
+        ttl = max(60, int(received + 90 * 24 * 3600 - time.time()))
+        wrangler("key", "put", item["name"], "--path", path, "--metadata", json.dumps(metadata), "--ttl", str(ttl))
     finally:
         os.unlink(path)
 
@@ -79,7 +87,7 @@ def main():
             shown += 1
             when = item["name"][3:19].replace("T", " ")
             platform = "win" if meta.get("platform") == "windows" else "mac"
-            print(f"{i:>3}. {when}  {platform} v{meta.get('version', '?'):<7} [{status}]  {meta.get('preview', '')}")
+            print(f"{i:>3}. {when}  {platform} v{meta.get('version', '?'):<7} [{status}]  {safe(meta.get('preview', ''))}")
         if not shown:
             print("Nessun feedback nuovo." if items else "Nessun feedback.")
         return
@@ -94,13 +102,13 @@ def main():
         app = record.get("app", {})
         print(f"ID:        {record['id']}")
         print(f"Ricevuto:  {record['receivedAt']}  ({record.get('country', '')})")
-        print(f"Da:        {record.get('name') or '-'} {record.get('email') or ''}")
-        print(f"App:       {app}")
+        print(f"Da:        {safe(record.get('name') or '-')} {safe(record.get('email') or '')}")
+        print(f"App:       {safe(app)}")
         print(f"Stato:     {(item.get('metadata') or {}).get('status', 'nuovo')}\n")
-        print(record["message"])
+        print(safe(record["message"]))
         if record.get("diagnostics"):
             print("\n--- diagnostica ---")
-            print(record["diagnostics"])
+            print(safe(record["diagnostics"]))
     elif command == "issue":
         title = "Feedback: " + record["message"].splitlines()[0][:80]
         body = (f"{record['message']}\n\n---\nRicevuto {record['receivedAt']} · app {record.get('app', {})}\n"

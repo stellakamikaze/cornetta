@@ -40,7 +40,7 @@ struct FeedbackView: View {
     @AppStorage("feedbackName") private var name = ""
     @AppStorage("feedbackEmail") private var email = ""
     @State private var message = ""
-    @State private var includeDiagnostics = true
+    @State private var includeDiagnostics = false
     @State private var sending = false
     @State private var error: String?
     @State private var sent = false
@@ -117,7 +117,8 @@ struct FeedbackView: View {
         error = nil
         do {
             try await FeedbackSender.send(message: message, name: name, email: email,
-                                          diagnostics: includeDiagnostics ? diagnostics : nil, microphone: microphone)
+                                          diagnostics: includeDiagnostics ? diagnostics : nil,
+                                          microphone: includeDiagnostics ? microphone : nil)
             sent = true
         } catch {
             self.error = error.localizedDescription
