@@ -1,0 +1,22 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Cornetta</title>
+        <item>
+            <title>0.2.0</title>
+            <pubDate>Wed, 14 Oct 2026 10:34:51 +0200</pubDate>
+            <sparkle:version>0.2.0</sparkle:version>
+            <sparkle:shortVersionString>0.2.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.4</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>Cornetta 0.2.0</h2><ul>
+<li>La tua voce ora si sente forte quanto quella della chiamata.</li>
+<li>Un pannello in alto a destra mostra tempo e livelli durante la registrazione.</li>
+<li>Quando parte una chiamata Cornetta propone di registrarla.</li>
+<li>Nuovo pulsante Feedback per segnalare problemi e idee.</li>
+<li>Gli aggiornamenti arrivano da soli, con un avviso ben visibile.</li>
+</ul>
+]]></description>
+            <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta-0.2.0.dmg" length="1705724" type="application/octet-stream" sparkle:edSignature="fjmmMH2TfFNBPP7BwSJ6msd45bsgz1nnW4a6KTw0YC8b2VX/ezisOh9HFyjEBbLGUbz17FBUd73uFm1NspSQBg=="/>
+        </item>
+    </channel>
+</rss>
