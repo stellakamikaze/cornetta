@@ -3,6 +3,24 @@
     <channel>
         <title>Cornetta</title>
         <item>
+            <title>0.3.2</title>
+            <pubDate>Wed, 14 Oct 2026 14:39:51 +0200</pubDate>
+            <sparkle:version>0.3.2</sparkle:version>
+            <sparkle:shortVersionString>0.3.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.4</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>Cornetta 0.3.2</h2><ul>
+<li>«Aggiorna ora» apre la finestra di installazione davanti alle altre app</li>
+</ul>
+]]></description>
+            <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta-0.3.2.dmg" length="2296121" type="application/octet-stream" sparkle:edSignature="jCxtgsJKi3QRcfkHOUqQaKmaUBdCGOvojU7rnUK8Ihln5HsZ2hr7raqF+Y4eP+j1Y1d9YFfQHZWVnq0ay/mbBQ=="/>
+            <sparkle:deltas>
+                <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta0.3.2-0.3.1.delta" sparkle:deltaFrom="0.3.1" length="134158" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="976336" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="FKsP6nAQ3EW82NzkDKRrKBwvnysG1fv2LVXaNu+zJprq2gE1FMy/4XHXmjodFCQgzohMyWkjrFIxMI8e1YxcBg=="/>
+                <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta0.3.2-0.3.0.delta" sparkle:deltaFrom="0.3.0" length="888274" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862320" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="Mk8ZGblxAukd5FnJhsalxR+t4BiGtGJlSda0XnLQIiGvb//bW9ze81plis7UKeOSXr7uiEIpbmnEbU0zgXiHCg=="/>
+                <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta0.3.2-0.2.1.delta" sparkle:deltaFrom="0.2.1" length="1078662" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862320" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="HwwJ94eKaWItE1dJg4hPlDYn81Ncq52eENRKCyTopLX9lVfHAQUOF+loNEmjQ51ulX+S3W5DA/h0KxlHeXohBA=="/>
+                <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta0.3.2-0.2.0.delta" sparkle:deltaFrom="0.2.0" length="1084974" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862320" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="KAtosYTQxg1BFzSGl3pCOAUSpc+/t8/PEIYGxim116VJpKpspklVQ6kqaKdxVfpjSpJQ3731k5kKylL2kj1iAA=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>0.3.1</title>
             <pubDate>Wed, 14 Oct 2026 13:44:54 +0200</pubDate>
             <sparkle:version>0.3.1</sparkle:version>
@@ -38,23 +56,6 @@
             <sparkle:deltas>
                 <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta0.3.0-0.2.1.delta" sparkle:deltaFrom="0.2.1" length="414442" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862320" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="Ec6MByQDT4KF6mrJ8Q+i91DyvqKTQD4cN+uNEKkbQIqihnPhvP6TR6L3ScVk9duYwIXU6l95oRHlhPnfT98yAw=="/>
                 <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta0.3.0-0.2.0.delta" sparkle:deltaFrom="0.2.0" length="423526" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862320" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="LNunrIEXiMP+CW7ZZt1wFkN9YrRukyNDip8BomqlzAMG1DBKP1nhhG+oabKnIaBP9aa6QwyZUiBDzAeIAoqEDg=="/>
-            </sparkle:deltas>
-        </item>
-        <item>
-            <title>0.2.1</title>
-            <pubDate>Wed, 14 Oct 2026 10:48:49 +0200</pubDate>
-            <sparkle:version>0.2.1</sparkle:version>
-            <sparkle:shortVersionString>0.2.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.4</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>Cornetta 0.2.1</h2><ul>
-<li>Il pannello mostra il microfono con un'icona, senza ripetere la parola.</li>
-<li>L'avviso di aggiornamento ha sempre lo stesso colore blu.</li>
-<li>Il feedback indica da quale sistema arriva.</li>
-</ul>
-]]></description>
-            <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta-0.2.1.dmg" length="1709339" type="application/octet-stream" sparkle:edSignature="IXqiUHMp7R6rap3judiCc8Di10c48aB79WdrLNrAyB8Un0Tjz6icwhvhaqr4ru16fgR5CSypdi/dk3beeCtMDw=="/>
-            <sparkle:deltas>
-                <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta0.2.1-0.2.0.delta" sparkle:deltaFrom="0.2.0" length="91786" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862320" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="hgv2ecGRz4liO0g9MY2VostzIrd2VqOgtozkhG73uhWkDXmlvXoKW0XrRUJb8eRZKexIc1p41/xQdeahpEiKBQ=="/>
             </sparkle:deltas>
         </item>
     </channel>
