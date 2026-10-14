@@ -12,6 +12,8 @@ namespace Cornetta.Core
     /// - se la sorgente corre avanti rispetto all'orologio (deriva fra i due dispositivi),
     ///   scarta i campioni in eccesso e si riallinea.
     /// Così microfono e sistema restano allineati anche dopo minuti di silenzio.
+    /// Chi legge deve stare indietro rispetto all'orologio più di GapToleranceFrames (il mixer sta a 350 ms):
+    /// altrimenti un blocco che arriva dopo un silenzio viene accodato invece che messo al suo posto.
     /// Thread safe: le catture scrivono dai loro thread, il mixer legge dal suo.
     /// </summary>
     public sealed class CaptureTimeline

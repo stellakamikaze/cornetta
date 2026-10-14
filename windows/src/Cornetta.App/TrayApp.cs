@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Cornetta.Core;
+using Microsoft.Win32;
 
 namespace Cornetta.App
 {
@@ -59,6 +60,9 @@ namespace Cornetta.App
             updateTimer.Tick += async (_, __) => await CheckUpdates(manual: false);
             updateTimer.Start();
             hotkey = new GlobalHotkey(Toggle);
+            // Spegnimento, disconnessione e sospensione: il file va chiuso prima, o resta illeggibile.
+            SystemEvents.SessionEnding += OnSessionEnding;
+            SystemEvents.PowerModeChanged += OnPowerModeChanged;
 
             // Un controllo all'avvio, oltre a quelli ogni 4 ore: chi apre l'app scopre subito la novità.
             var startupCheck = new Timer { Interval = 5000 };
@@ -175,6 +179,12 @@ namespace Cornetta.App
         private async Task Start()
         {
             if (IsRecording || busy) return;
+            if (installing)
+            {
+                // L'aggiornamento riavvia l'app: una registrazione partita adesso verrebbe troncata.
+                tray.ShowBalloonTip(5000, "Cornetta", "Sto installando l'aggiornamento: fra pochi secondi puoi registrare.", ToolTipIcon.Info);
+                return;
+            }
             busy = true;
             message = null;
             CloseNotice();
@@ -227,11 +237,21 @@ namespace Cornetta.App
             var current = recorder;
             if (current == null || busy) return;
             busy = true;
-            var stats = await Task.Run(() => current.Stop());
-            Diagnostics.Log("Stop: " + Diagnostics.F(stats.Seconds, 2) + " s scritti, "
-                + Diagnostics.F((DateTime.UtcNow - startedAt).TotalSeconds, 2) + " s dall'avvio, riavvii " + current.RestartCount
-                + ", guadagno voce " + Diagnostics.F(current.MicGain, 1));
-            busy = false;
+            try
+            {
+                var stats = await Task.Run(() => current.Stop());
+                Diagnostics.Log("Stop: " + Diagnostics.F(stats.Seconds, 2) + " s scritti, "
+                    + Diagnostics.F((DateTime.UtcNow - startedAt).TotalSeconds, 2) + " s dall'avvio, riavvii " + current.RestartCount
+                    + ", guadagno voce " + Diagnostics.F(current.MicGain, 1));
+            }
+            catch (Exception ex)
+            {
+                Diagnostics.Log("Stop non riuscito: " + ex.Message);
+            }
+            finally
+            {
+                busy = false;
+            }
             lastFile = current.OutputPath;
             Finish();
             message = "Salvata: " + Path.GetFileName(current.OutputPath);
@@ -504,6 +524,8 @@ namespace Cornetta.App
 
         private async void Quit()
         {
+            // Se una registrazione sta partendo, aspetta che sia partita: poi la chiude bene.
+            while (busy) await Task.Delay(100);
             if (recorder != null)
             {
                 var current = recorder;
@@ -514,8 +536,45 @@ namespace Cornetta.App
             ExitThread();
         }
 
+        private void OnSessionEnding(object sender, SessionEndingEventArgs e) =>
+            StopForSystem("Registrazione fermata: Windows si sta spegnendo.");
+
+        private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
+        {
+            if (e.Mode == PowerModes.Suspend) StopForSystem("Registrazione fermata e salvata: il PC è andato in sospensione.");
+        }
+
+        /// <summary>Chiude subito il file, da qualunque thread arrivi l'evento di sistema.</summary>
+        private void StopForSystem(string reason)
+        {
+            var current = recorder;
+            if (current == null) return;
+            try
+            {
+                var stats = Task.Run(() => current.Stop()).Result;
+                Diagnostics.Log(reason + " " + Diagnostics.F(stats.Seconds, 2) + " s scritti");
+            }
+            catch (Exception ex)
+            {
+                Diagnostics.Log("Stop di sistema non riuscito: " + ex.GetBaseException().Message);
+            }
+            try
+            {
+                invoker.BeginInvoke(new Action(() =>
+                {
+                    if (recorder != current) return;
+                    lastFile = current.OutputPath;
+                    Finish();
+                    message = reason;
+                }));
+            }
+            catch (InvalidOperationException) { }
+        }
+
         protected override void ExitThreadCore()
         {
+            SystemEvents.SessionEnding -= OnSessionEnding;
+            SystemEvents.PowerModeChanged -= OnPowerModeChanged;
             // Chiude il file anche se l'app esce durante una registrazione.
             if (recorder != null)
             {

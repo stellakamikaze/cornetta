@@ -246,6 +246,9 @@ namespace Cornetta.App
             Size = PreferredSize;
         }
 
+        /// <summary>Glifo speciale: quadrato pieno disegnato a mano.</summary>
+        public const string StopGlyph = "stop";
+
         public Color? Fill { get; set; }
         public string? Glyph { get; }
         public bool Small { get; }
@@ -298,7 +301,18 @@ namespace Cornetta.App
             int glyphWidth = Glyph != null ? Px(Small ? 12 : 14) : 0;
             int gap = Glyph != null ? Px(6) : 0;
             int x = (Width - (glyphWidth + gap + textSize.Width)) / 2;
-            if (Glyph != null)
+            if (Glyph == StopGlyph)
+            {
+                // Quadrato pieno, come «stop.fill» sul Mac (il glifo Stop di Segoe è solo il contorno).
+                int side = Px(Small ? 8 : 10);
+                var square = new Rectangle(x + (glyphWidth - side) / 2, (Height - side) / 2, side, side);
+                using (var path = PanelForm.RoundedRect(square, Px(2)))
+                using (var brush = new SolidBrush(foreground))
+                {
+                    g.FillPath(brush, path);
+                }
+            }
+            else if (Glyph != null)
             {
                 using (var iconFont = new Font("Segoe MDL2 Assets", Small ? 8f : 9.5f))
                 {

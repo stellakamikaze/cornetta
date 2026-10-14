@@ -45,7 +45,7 @@ namespace Cornetta.App
         {
             Text = "Cornetta";
             AccessibleName = "Cornetta, registrazione in corso";
-            stopButton = new PanelButton("Ferma", theme, scale, Theme.Red, "");
+            stopButton = new PanelButton("Ferma", theme, scale, Theme.Red, PanelButton.StopGlyph);
             feedbackButton = new PanelButton("Feedback", theme, scale, null, "", small: true);
             continueButton = new PanelButton("Continua", theme, scale, null, null, small: true);
             stopButton.Click += (_, __) => StopClicked?.Invoke();

@@ -40,6 +40,7 @@ namespace Cornetta.App
         private int firstBlockLogged;
         private bool pendingMicRestart;
         private bool pendingSystemRestart;
+        private int watchdogTicks;
 
         public Recorder(string outputPath)
         {
@@ -73,7 +74,15 @@ namespace Cornetta.App
                 running = true;
                 try
                 {
-                    StartSystem();
+                    try { StartSystem(); }
+                    catch (Exception ex)
+                    {
+                        // Senza loopback si registra almeno il microfono; il watchdog riprova l'uscita.
+                        system?.Dispose();
+                        system = null;
+                        OutputName = null;
+                        Diagnostics.Log("Audio di sistema non avviato: " + ex.Message);
+                    }
                     if (useMicrophone) StartMicrophone();
                     pipeline.HasMicrophone = mic != null;
                     if (mic == null && system == null)
@@ -124,18 +133,20 @@ namespace Cornetta.App
                 }
                 watcher = null;
                 StopCaptures();
-                mixThread?.Join(TimeSpan.FromSeconds(5));
+                bool mixerStopped = mixThread?.Join(TimeSpan.FromSeconds(5)) ?? true;
                 mixThread = null;
                 try
                 {
-                    // Gli ultimi 350 ms che il mixer teneva in attesa.
-                    pipeline?.Render(NowFrame());
+                    // Gli ultimi 350 ms che il mixer teneva in attesa (solo se il mixer è fermo: la pipeline ha un solo thread).
+                    if (mixerStopped) pipeline?.Render(NowFrame());
+                    else Diagnostics.Log("Il mixer non si è fermato entro 5 s: salto gli ultimi 350 ms");
                 }
                 catch (Exception ex)
                 {
                     Diagnostics.Log("Chiusura del mix: " + ex.Message);
                 }
-                sink?.Close();
+                try { sink?.Close(); }
+                catch (Exception ex) { Diagnostics.Log("Chiusura del file: " + ex.Message); }
                 if (sink?.Error != null) Diagnostics.Log("Errore del file: " + sink.Error.Message);
                 if (pipeline != null)
                 {
@@ -259,8 +270,11 @@ namespace Cornetta.App
             Diagnostics.Log(message);
             ThreadPool.QueueUserWorkItem(_ =>
             {
-                Stop();
-                Failure?.Invoke(message);
+                // Su .NET Framework un'eccezione in un thread del pool chiude il processo: qui non ne esce nessuna.
+                try { Stop(); }
+                catch (Exception ex) { Diagnostics.Log("Stop dopo l'errore: " + ex.Message); }
+                try { Failure?.Invoke(message); }
+                catch (Exception ex) { Diagnostics.Log("Avviso dell'errore: " + ex.Message); }
             });
         }
 
@@ -293,6 +307,13 @@ namespace Cornetta.App
 
         private void ApplyPendingRestarts()
         {
+            // Gira su un timer: nessuna eccezione deve uscire di qui.
+            try { ApplyPendingRestartsCore(); }
+            catch (Exception ex) { Diagnostics.Log("Riavvio della cattura non riuscito: " + ex.Message); }
+        }
+
+        private void ApplyPendingRestartsCore()
+        {
             bool micChanged = false;
             string? name;
             lock (control)
@@ -307,7 +328,12 @@ namespace Cornetta.App
                     keepAlive?.Dispose();
                     keepAlive = null;
                     try { StartSystem(); }
-                    catch (Exception ex) { Diagnostics.Log("Riavvio del sistema non riuscito: " + ex.Message); }
+                    catch (Exception ex)
+                    {
+                        system?.Dispose();
+                        system = null;
+                        Diagnostics.Log("Riavvio del sistema non riuscito, riprovo fra poco: " + ex.Message);
+                    }
                     Diagnostics.Log("Uscita: " + (OutputName ?? "nessuna"));
                 }
                 if (pendingMicRestart && useMicrophone)
@@ -325,15 +351,34 @@ namespace Cornetta.App
             if (micChanged) MicrophoneChanged?.Invoke(name);
         }
 
+        private bool HasDefault(DataFlow flow)
+        {
+            try { return enumerator!.HasDefaultAudioEndpoint(flow, Role.Console); }
+            catch (Exception) { return false; }
+        }
+
         // MARK: - Watchdog
         // Se l'audio smette di arrivare (dispositivo sparito senza notifica), ricrea la cattura.
 
         private void Watchdog()
         {
+            try { WatchdogCore(); }
+            catch (Exception ex) { Diagnostics.Log("Watchdog: " + ex.Message); }
+        }
+
+        private void WatchdogCore()
+        {
             if (!running) return;
             bool restart = false;
             lock (control)
             {
+                // Una sorgente persa (dispositivo non pronto al riavvio) si riprova ogni 10 s, se Windows ha un dispositivo predefinito.
+                watchdogTicks++;
+                if (watchdogTicks % 5 == 0 && enumerator != null)
+                {
+                    if (useMicrophone && mic == null && HasDefault(DataFlow.Capture)) { pendingMicRestart = true; restart = true; }
+                    if (system == null && HasDefault(DataFlow.Render)) { pendingSystemRestart = true; restart = true; }
+                }
                 if (mic != null && mic.SecondsSinceLastData > 3)
                 {
                     pendingMicRestart = true;
@@ -394,14 +439,22 @@ namespace Cornetta.App
         private void OnData(object? sender, WaveInEventArgs e)
         {
             if (disposed || e.BytesRecorded <= 0) return;
-            long arrival = nowFrame();
-            sinceData.Restart();
-            onFirstBlock(Name);
-            var samples = AudioConversion.ToFloat(e.Buffer, e.BytesRecorded, format);
-            var shaped = timeline.Channels == 1
-                ? AudioConversion.ToMono(samples, format.Channels)
-                : AudioConversion.ToStereo(samples, format.Channels);
-            timeline.Write(arrival, resampler.Process(shaped));
+            try
+            {
+                long arrival = nowFrame();
+                sinceData.Restart();
+                onFirstBlock(Name);
+                var samples = AudioConversion.ToFloat(e.Buffer, e.BytesRecorded, format);
+                var shaped = timeline.Channels == 1
+                    ? AudioConversion.ToMono(samples, format.Channels)
+                    : AudioConversion.ToStereo(samples, format.Channels);
+                timeline.Write(arrival, resampler.Process(shaped));
+            }
+            catch (Exception ex)
+            {
+                // Thread di cattura di NAudio: un'eccezione qui chiuderebbe l'app.
+                Diagnostics.Log("Blocco " + Name + " scartato: " + ex.Message);
+            }
         }
 
         public void Dispose()
@@ -433,7 +486,11 @@ namespace Cornetta.App
         public void OnDefaultDeviceChanged(DataFlow flow, Role role, string defaultDeviceId)
         {
             if (role != Role.Console) return;
-            ThreadPool.QueueUserWorkItem(_ => onDefaultChanged(flow));
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                try { onDefaultChanged(flow); }
+                catch (Exception ex) { Diagnostics.Log("Cambio dispositivo: " + ex.Message); }
+            });
         }
 
         public void OnDeviceStateChanged(string deviceId, DeviceState newState) { }
