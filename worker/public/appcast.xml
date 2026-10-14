@@ -3,6 +3,26 @@
     <channel>
         <title>Cornetta</title>
         <item>
+            <title>0.3.1</title>
+            <pubDate>Wed, 14 Oct 2026 13:44:54 +0200</pubDate>
+            <sparkle:version>0.3.1</sparkle:version>
+            <sparkle:shortVersionString>0.3.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.4</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>Cornetta 0.3.1</h2><ul>
+<li>Se il Mac si spegne o Cornetta si chiude a metà chiamata, la registrazione si recupera al riavvio</li>
+<li>Al primo avvio una finestra guida i due permessi</li>
+<li>Avviso chiaro se l'audio della chiamata non arriva</li>
+<li>Aggiornamenti di sicurezza</li>
+</ul>
+]]></description>
+            <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta-0.3.1.dmg" length="2322719" type="application/octet-stream" sparkle:edSignature="1gz8y/tfdoUXfQKrOHEV2Nk2D7O/6Be/FbLKluD/60jl4q43EE+vjflNojHZZdO+BB5PT4FOcOy6/tDIT9LzAQ=="/>
+            <sparkle:deltas>
+                <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta0.3.1-0.3.0.delta" sparkle:deltaFrom="0.3.0" length="880538" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862320" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="YWnFUC6mfp/eYLiW3Xg2kRNWZt0kG9Ig1dg3Yz7oYJq1YtrH8qaem64n1nVAWc6mR2XOemAZy0dTn7qsVcvODQ=="/>
+                <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta0.3.1-0.2.1.delta" sparkle:deltaFrom="0.2.1" length="1076118" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862320" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="lM3LcZN/dtNkazDuIdjXK4xChjt4NNj/b3MRseOyd71urHrldkWeNAWOjr7xoIg6/DAxfsYaQSfQjSgtE3DzCQ=="/>
+                <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta0.3.1-0.2.0.delta" sparkle:deltaFrom="0.2.0" length="1081502" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862320" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="FlX8vd2tI6DLKvhmz5qxdh6ks69Y7WZIUYSEVG4gS7jsW+HxlYpH5Zk58hDPqc458iNqhF6NLYvDUpQXOR02AQ=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>0.3.0</title>
             <pubDate>Wed, 14 Oct 2026 12:33:40 +0200</pubDate>
             <sparkle:version>0.3.0</sparkle:version>
@@ -36,22 +56,6 @@
             <sparkle:deltas>
                 <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta0.2.1-0.2.0.delta" sparkle:deltaFrom="0.2.0" length="91786" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862320" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="hgv2ecGRz4liO0g9MY2VostzIrd2VqOgtozkhG73uhWkDXmlvXoKW0XrRUJb8eRZKexIc1p41/xQdeahpEiKBQ=="/>
             </sparkle:deltas>
-        </item>
-        <item>
-            <title>0.2.0</title>
-            <pubDate>Wed, 14 Oct 2026 10:34:51 +0200</pubDate>
-            <sparkle:version>0.2.0</sparkle:version>
-            <sparkle:shortVersionString>0.2.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.4</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>Cornetta 0.2.0</h2><ul>
-<li>La tua voce ora si sente forte quanto quella della chiamata.</li>
-<li>Un pannello in alto a destra mostra tempo e livelli durante la registrazione.</li>
-<li>Quando parte una chiamata Cornetta propone di registrarla.</li>
-<li>Nuovo pulsante Feedback per segnalare problemi e idee.</li>
-<li>Gli aggiornamenti arrivano da soli, con un avviso ben visibile.</li>
-</ul>
-]]></description>
-            <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta-0.2.0.dmg" length="1705724" type="application/octet-stream" sparkle:edSignature="fjmmMH2TfFNBPP7BwSJ6msd45bsgz1nnW4a6KTw0YC8b2VX/ezisOh9HFyjEBbLGUbz17FBUd73uFm1NspSQBg=="/>
         </item>
     </channel>
 </rss>
