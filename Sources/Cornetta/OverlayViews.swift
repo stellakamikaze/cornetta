@@ -34,10 +34,12 @@ struct RecordingOverlayView: View {
                 .help("Ferma e salva la registrazione")
             }
             HStack {
-                Text(model.microphoneName.map { "Microfono: \($0)" } ?? "Senza microfono: registro solo la chiamata")
+                Label(model.microphoneName ?? "Senza microfono: registro solo la chiamata",
+                      systemImage: model.microphoneName == nil ? "mic.slash" : "mic.fill")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .help("Microfono in uso")
                 Spacer()
                 Button {
                     model.openFeedback()

@@ -226,7 +226,7 @@ final class RecorderModel: ObservableObject {
         // Durante una registrazione l'avviso aspetta lo stop: niente distrazioni in chiamata.
         guard !isRecording else { pendingUpdateNotice = version; return }
         showNotice(kind: "update", NoticeView(
-            icon: "arrow.down.circle.fill", tint: .accentColor,
+            icon: "arrow.down.circle.fill", tint: .blue,
             title: "Aggiornamento disponibile",
             message: "È pronta Cornetta \(version). L'installazione richiede pochi secondi e l'app si riapre da sola.",
             primary: "Aggiorna ora", secondary: "Più tardi",
@@ -271,6 +271,32 @@ final class RecorderModel: ObservableObject {
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
     }
+
+    // MARK: - Dimostrazione (per gli screenshot del sito)
+
+    /// `Cornetta --demo`: mostra pannello e avvisi con dati di esempio, senza registrare.
+    func showDemo() {
+        isRecording = true
+        elapsed = 12 * 60 + 48
+        microphoneName = "Microfono MacBook Air"
+        micLevel = 0.72
+        systemLevel = 0.81
+        refreshOverlay()
+        showCallNotice(appName: "WhatsApp")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            let panel = FloatingPanel(rootView: NoticeView(
+                icon: "arrow.down.circle.fill", tint: .blue,
+                title: "Aggiornamento disponibile",
+                message: "È pronta Cornetta 0.3.0. L'installazione richiede pochi secondi e l'app si riapre da sola.",
+                primary: "Aggiorna ora", secondary: "Più tardi", onPrimary: {}, onSecondary: {}),
+                autosaveName: "CornettaDemoUpdate")
+            panel.setFrameOrigin(NSPoint(x: 80, y: 120))
+            panel.show()
+            self.demoPanels.append(panel)
+        }
+    }
+
+    private var demoPanels: [FloatingPanel] = []
 
     // MARK: - Finder
 

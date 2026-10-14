@@ -80,6 +80,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         Diagnostics.log("Avvio Cornetta \(AppInfo.version) da \(Bundle.main.bundlePath)")
         MainActor.assumeIsolated {
+            if CommandLine.arguments.contains("--demo") {
+                RecorderModel.shared.showDemo()
+                return
+            }
             AppMover.offerMoveIfNeeded()
             _ = RecorderModel.shared
         }
