@@ -1,0 +1,151 @@
+# Cornetta per Windows: compila, prova, impacchetta con Velopack.
+# - push su un ramo che tocca windows/: build, test, selftest, pacchetto di prova (versione 0.0.<run>)
+# - tag win-v0.3.0: stessa cosa con la versione 0.3.0, pronta da pubblicare
+# - avvio a mano (workflow_dispatch) con la versione scelta
+# Gli artifact contengono CornettaSetup.exe e i file del feed (releases.win.json, *.nupkg)
+# da copiare in worker/public/windows/ con windows/tools/publish.sh.
+name: Windows
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["win-v*"]
+    paths:
+      - "windows/**"
+      - ".github/workflows/windows.yml"
+  pull_request:
+    paths:
+      - "windows/**"
+      - ".github/workflows/windows.yml"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versione da impacchettare (es. 0.3.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  VPK_VERSION: "1.2.161"
+  FEED_URL: "https://cornetta.stellakamikaze.org/windows/"
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: windows
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: windows/global.json
+          dotnet-version: "8.0.x"
+
+      - name: Versione
+        id: version
+        run: |
+          $ref = "${{ github.ref }}"
+          $inputVersion = "${{ inputs.version }}"
+          if ($ref -like "refs/tags/win-v*") { $v = $ref.Substring("refs/tags/win-v".Length) }
+          elseif ($inputVersion) { $v = $inputVersion }
+          else { $v = "0.0.${{ github.run_number }}" }
+          if ($v -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') { throw "Versione non valida: $v" }
+          "version=$v" >> $env:GITHUB_OUTPUT
+          Write-Host "Versione: $v"
+
+      - name: Restore
+        run: dotnet restore Cornetta.Windows.sln
+
+      - name: Build
+        run: dotnet build Cornetta.Windows.sln -c Release --no-restore -p:Version=${{ steps.version.outputs.version }} -p:CornettaBuild=${{ github.run_number }}
+
+      - name: Test (net10.0 e net48)
+        run: dotnet test Cornetta.Windows.sln -c Release --no-build --logger "console;verbosity=normal"
+
+      - name: Prepara la cartella dell'app
+        run: |
+          New-Item -ItemType Directory -Force publish | Out-Null
+          Copy-Item src/Cornetta.App/bin/Release/net48/* publish/ -Recurse
+          Get-ChildItem publish | Format-Table Name, Length
+
+      - name: Smoke test (--selftest)
+        run: |
+          $out = Join-Path $PWD "selftest-stdout.txt"
+          $err = Join-Path $PWD "selftest-stderr.txt"
+          $report = Join-Path $PWD "selftest-report.txt"
+          $p = Start-Process -FilePath (Resolve-Path publish/Cornetta.exe) -ArgumentList "--selftest", "--selftest-out", "`"$report`"" `
+                 -Wait -PassThru -NoNewWindow -RedirectStandardOutput $out -RedirectStandardError $err
+          Write-Host "--- rapporto ---"
+          if (Test-Path $report) { Get-Content $report } else { Get-Content $out }
+          if ((Get-Item $err).Length -gt 0) { Write-Host "--- stderr ---"; Get-Content $err }
+          $log = Join-Path $env:LOCALAPPDATA "Cornetta/cornetta.log"
+          if (Test-Path $log) { Write-Host "--- cornetta.log ---"; Get-Content $log }
+          Write-Host "Codice di uscita: $($p.ExitCode)"
+          exit $p.ExitCode
+
+      - name: Installa vpk
+        run: dotnet tool install -g vpk --version $env:VPK_VERSION
+
+      - name: Scarica l'ultima release pubblicata (per i pacchetti delta)
+        continue-on-error: true
+        run: vpk download http --url $env:FEED_URL --outputDir releases --allowEmptyChannel
+
+      - name: Impacchetta (vpk pack)
+        run: |
+          $v = "${{ steps.version.outputs.version }}"
+          vpk pack `
+            --packId Cornetta `
+            --packVersion $v `
+            --packDir publish `
+            --mainExe Cornetta.exe `
+            --packTitle Cornetta `
+            --packAuthors stellakamikaze `
+            --icon src/Cornetta.App/Assets/cornetta.ico `
+            --framework net48 `
+            --noPortable `
+            --outputDir releases
+          $setup = Get-ChildItem releases -Filter "*Setup.exe" | Select-Object -First 1
+          if (-not $setup) { throw "vpk non ha prodotto Setup.exe" }
+          Move-Item $setup.FullName releases/CornettaSetup.exe -Force
+          # Solo i file di questa versione e il feed: i pacchetti vecchi scaricati per i delta restano sul server.
+          New-Item -ItemType Directory -Force upload | Out-Null
+          Copy-Item releases/CornettaSetup.exe, releases/releases.win.json upload/
+          Copy-Item releases/assets.win.json upload/ -ErrorAction SilentlyContinue
+          Copy-Item releases/RELEASES upload/ -ErrorAction SilentlyContinue
+          Get-ChildItem releases -Filter "Cornetta-$v-*.nupkg" | Copy-Item -Destination upload/
+          Get-ChildItem upload | Format-Table Name, Length
+          $big = Get-ChildItem upload | Where-Object Length -gt 25MB
+          if ($big) { throw "File oltre 25 MiB, il Worker Cloudflare li rifiuta: $($big.Name -join ', ')" }
+
+      - name: Prova l'installer (installazione silenziosa per utente)
+        run: |
+          $p = Start-Process -FilePath (Resolve-Path upload/CornettaSetup.exe) -ArgumentList "--silent" -Wait -PassThru
+          Write-Host "Setup: codice $($p.ExitCode)"
+          Start-Sleep -Seconds 5
+          $root = Join-Path $env:LOCALAPPDATA "Cornetta"
+          $exe = Join-Path $root "current/Cornetta.exe"
+          if (-not (Test-Path $exe)) { Get-ChildItem $root -Recurse -ErrorAction SilentlyContinue | Select-Object -First 40 FullName; throw "Cornetta.exe non installato in $exe" }
+          Get-ChildItem $root | Format-Table Name, Length
+          $report = Join-Path $PWD "selftest-installed.txt"
+          $q = Start-Process -FilePath $exe -ArgumentList "--selftest", "--selftest-out", "`"$report`"" -Wait -PassThru -NoNewWindow
+          Get-Content $report
+          Get-Process Cornetta -ErrorAction SilentlyContinue | Stop-Process -Force
+          exit $q.ExitCode
+
+      - name: Carica gli artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cornetta-windows-${{ steps.version.outputs.version }}
+          path: |
+            windows/upload/
+            windows/selftest-*.txt
+          if-no-files-found: warn
