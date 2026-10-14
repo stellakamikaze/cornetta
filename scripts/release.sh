@@ -33,10 +33,16 @@ printf '/download /downloads/Cornetta-%s.dmg 302\n' "$VERSION" > worker/public/_
 (cd worker && npx -y wrangler@4 deploy)
 
 # Verifica sul servizio vero: feed con la versione nuova e DMG identico a quello locale.
-sleep 5
-curl -fsS "$BASE_URL/appcast.xml" | grep -q "<sparkle:shortVersionString>$VERSION<" || { echo "Il feed pubblicato non contiene $VERSION"; exit 1; }
-REMOTE=$(curl -fsSL "$BASE_URL/download" | shasum -a 256 | cut -d' ' -f1)
+# Subito dopo il deploy la rete di Cloudflare può servire ancora la versione precedente: si riprova.
 LOCAL=$(shasum -a 256 "dist/Cornetta-$VERSION.dmg" | cut -d' ' -f1)
+for attempt in 1 2 3 4 5 6; do
+  sleep 10
+  FEED_OK=$(curl -fsS "$BASE_URL/appcast.xml" | grep -c "<sparkle:shortVersionString>$VERSION<" || true)
+  REMOTE=$(curl -fsSL "$BASE_URL/download" | shasum -a 256 | cut -d' ' -f1)
+  [ "$FEED_OK" -ge 1 ] && [ "$REMOTE" = "$LOCAL" ] && break
+  echo "Verifica $attempt/6: il servizio non è ancora allineato, riprovo."
+done
+[ "$FEED_OK" -ge 1 ] || { echo "Il feed pubblicato non contiene $VERSION"; exit 1; }
 [ "$REMOTE" = "$LOCAL" ] || { echo "Il DMG scaricato non coincide con quello locale"; exit 1; }
 
 git add worker/public/appcast.xml worker/public/_redirects
