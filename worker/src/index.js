@@ -8,11 +8,16 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === "/api/feedback") {
-      if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors() });
-      if (request.method !== "POST") return json({ ok: false, error: "Usa POST" }, 405);
+      if (request.method !== "POST") return json({ ok: false, error: "Usa POST" }, 405, { allow: "POST" });
+      // Il feedback arriva solo dalle app native: un browser manda sempre Origin e qui viene rifiutato.
+      if (request.headers.get("origin")) return json({ ok: false, error: "Non accettato" }, 403);
+      if (!(request.headers.get("content-type") || "").startsWith("application/json")) {
+        return json({ ok: false, error: "Serve application/json" }, 415);
+      }
       return saveFeedback(request, env);
     }
     if (url.pathname === "/api/health") return json({ ok: true });
+    if (url.pathname.startsWith("/api/")) return json({ ok: false, error: "Non trovato" }, 404);
     return env.ASSETS.fetch(request);
   },
 };
@@ -51,12 +56,13 @@ async function saveFeedback(request, env) {
     message,
     email: typeof body.email === "string" ? body.email.trim().slice(0, 200) : "",
     name: typeof body.name === "string" ? body.name.trim().slice(0, 100) : "",
-    app: pick(body.app, ["version", "build", "macOS", "arch", "microphone"]),
+    platform: body.platform === "windows" ? "windows" : "macos",
+    app: pick(body.app, ["version", "build", "macOS", "os", "arch", "microphone"]),
     diagnostics: typeof body.diagnostics === "string" ? body.diagnostics.slice(0, 60_000) : "",
     country: request.cf?.country || "",
   };
   await env.FEEDBACK.put(id, JSON.stringify(record), {
-    metadata: { preview: message.slice(0, 120), version: record.app.version || "", status: "nuovo" },
+    metadata: { preview: message.slice(0, 120), version: record.app.version || "", platform: record.platform, status: "nuovo" },
   });
   return json({ ok: true, id });
 }
@@ -69,10 +75,17 @@ function pick(value, keys) {
   return out;
 }
 
-function cors() {
-  return { "access-control-allow-origin": "*", "access-control-allow-methods": "POST, OPTIONS", "access-control-allow-headers": "content-type" };
-}
+// Le risposte dell'API non si mettono in cache e non si caricano in pagine altrui.
+const API_HEADERS = {
+  "content-type": "application/json; charset=utf-8",
+  "cache-control": "no-store",
+  "x-content-type-options": "nosniff",
+  "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+  "strict-transport-security": "max-age=63072000; includeSubDomains",
+  "referrer-policy": "no-referrer",
+  "cross-origin-resource-policy": "same-origin",
+};
 
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", ...cors() } });
+function json(data, status = 200, extra = {}) {
+  return new Response(JSON.stringify(data), { status, headers: { ...API_HEADERS, ...extra } });
 }

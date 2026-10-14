@@ -18,6 +18,7 @@ enum FeedbackSender {
             "name": name,
             "email": email,
             "diagnostics": diagnostics ?? "",
+            "platform": "macos",
             "app": ["version": AppInfo.version, "build": AppInfo.build, "macOS": AppInfo.macOS, "arch": AppInfo.arch,
                     "microphone": microphone ?? ""],
         ]
