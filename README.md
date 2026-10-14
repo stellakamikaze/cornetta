@@ -125,6 +125,19 @@ Le app installate vedono la versione nuova all'avvio e ogni 4 ore.
 - Cornetta registra l'uscita audio predefinita. Se l'app di chiamata usa un altro dispositivo (per esempio le cuffie impostate solo come «dispositivo di comunicazione»), la voce degli altri non entra nel file.
 - `wrangler deploy` pubblica tutta `worker/public`: deploya solo da una macchina che ha anche `worker/public/windows/`.
 
+## Notarizzazione Apple (installazione senza «Apri comunque»)
+
+Oggi Cornetta è firmata con un certificato locale: macOS la blocca al primo avvio e chiede «Apri comunque». Con la notarizzazione Apple si apre con un doppio clic, come un'app dell'App Store. Serve l'[Apple Developer Program](https://developer.apple.com/programs/) (99 $ l'anno).
+
+1. Iscriviti al programma come persona fisica. L'app mostrerà il tuo nome come sviluppatore.
+2. Crea un certificato «Developer ID Application» e importalo nel portachiavi.
+3. Salva le credenziali di notarizzazione, con una password specifica per app creata su appleid.apple.com:
+   `xcrun notarytool store-credentials cornetta-notary --apple-id <email> --team-id <TEAMID>`
+4. Pubblica come sempre, indicando certificato e profilo:
+   `SIGN_IDENTITY="Developer ID Application: <Nome> (<TEAMID>)" NOTARY_PROFILE=cornetta-notary scripts/release.sh X.Y.Z "novità"`
+
+Lo script attiva il runtime rinforzato, notarizza app e DMG e vi aggancia il ticket (`stapler`). Al primo aggiornamento dopo il passaggio, macOS chiede una volta sola di nuovo i due permessi, perché cambia il certificato.
+
 ## Nota legale
 
 In Italia registrare una conversazione a cui partecipi è lecito per uso personale. Diffonderla senza il consenso delle altre persone non lo è. In altri paesi le regole cambiano: informati prima di registrare.

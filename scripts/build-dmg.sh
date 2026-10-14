@@ -3,6 +3,11 @@
 #   VERSION=0.2.0 scripts/build-dmg.sh   →   dist/Cornetta-0.2.0.dmg
 # Firma: usa l'identità «Cornetta Self-Signed» se è nel portachiavi (permessi stabili fra versioni),
 # altrimenti firma ad-hoc. SIGN_IDENTITY la sovrascrive.
+# Notarizzazione Apple (niente «Apri comunque» al primo avvio): serve un certificato
+# «Developer ID Application» e un profilo notarytool salvato nel portachiavi:
+#   SIGN_IDENTITY="Developer ID Application: Nome (TEAMID)" NOTARY_PROFILE=cornetta-notary scripts/release.sh X.Y.Z
+# Con un Developer ID il runtime rinforzato è automatico. Col certificato locale no: senza Team ID
+# il runtime rinforzato impedisce all'app di caricare Sparkle (verificato il 14/10/2026).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -44,14 +49,30 @@ plutil -lint "$APP/Contents/Info.plist" >/dev/null
 
 echo "→ Firma ($SIGN_IDENTITY)"
 SP="$APP/Contents/Frameworks/Sparkle.framework/Versions/B"
-sign() { codesign --force --sign "$SIGN_IDENTITY" "$@"; }
+RUNTIME=()
+if [[ "$SIGN_IDENTITY" == "Developer ID Application"* ]]; then
+  RUNTIME=(--options runtime --timestamp)
+fi
+sign() { codesign --force --sign "$SIGN_IDENTITY" ${RUNTIME[@]+"${RUNTIME[@]}"} "$@"; }
 sign "$SP/XPCServices/Installer.xpc"
 sign --preserve-metadata=entitlements "$SP/XPCServices/Downloader.xpc"
 sign "$SP/Autoupdate"
 sign "$SP/Updater.app"
 sign "$APP/Contents/Frameworks/Sparkle.framework"
-sign --identifier com.stellakamikaze.cornetta "$APP"
+sign --identifier com.stellakamikaze.cornetta --entitlements Resources/Cornetta.entitlements "$APP"
 codesign --verify --deep --strict "$APP"
+
+notarize() {
+  echo "→ Notarizzazione di $(basename "$1")"
+  xcrun notarytool submit "$1" --keychain-profile "$NOTARY_PROFILE" --wait
+}
+if [ -n "${NOTARY_PROFILE:-}" ]; then
+  # Prima l'app (così funziona anche offline una volta copiata), poi il DMG che la contiene.
+  ZIP="$(mktemp -d)/Cornetta.zip"
+  ditto -c -k --keepParent "$APP" "$ZIP"
+  notarize "$ZIP"
+  xcrun stapler staple "$APP"
+fi
 
 echo "→ DMG"
 mkdir -p dist
@@ -63,4 +84,9 @@ DMG="dist/Cornetta-$VERSION.dmg"
 rm -f "$DMG"
 hdiutil create -volname "Cornetta" -srcfolder "$STAGE" -fs HFS+ -format UDZO -ov "$DMG" >/dev/null
 sign "$DMG"
+if [ -n "${NOTARY_PROFILE:-}" ]; then
+  notarize "$DMG"
+  xcrun stapler staple "$DMG"
+  spctl --assess --type open --context context:primary-signature -v "$DMG"
+fi
 echo "✓ $DMG ($(du -h "$DMG" | cut -f1))"
