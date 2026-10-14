@@ -78,7 +78,8 @@ def main():
                 continue
             shown += 1
             when = item["name"][3:19].replace("T", " ")
-            print(f"{i:>3}. {when}  v{meta.get('version', '?'):<7} [{status}]  {meta.get('preview', '')}")
+            platform = "win" if meta.get("platform") == "windows" else "mac"
+            print(f"{i:>3}. {when}  {platform} v{meta.get('version', '?'):<7} [{status}]  {meta.get('preview', '')}")
         if not shown:
             print("Nessun feedback nuovo." if items else "Nessun feedback.")
         return
