@@ -3,6 +3,24 @@
     <channel>
         <title>Cornetta</title>
         <item>
+            <title>0.3.0</title>
+            <pubDate>Wed, 14 Oct 2026 12:33:40 +0200</pubDate>
+            <sparkle:version>0.3.0</sparkle:version>
+            <sparkle:shortVersionString>0.3.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.4</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>Cornetta 0.3.0</h2><ul>
+<li>Trascrizione sul Mac: a fine chiamata Cornetta scrive il testo, con la tua voce e quella degli altri separate.</li>
+<li>Nuova finestra Registrazioni (⌘T): cerca nelle chiamate, leggi la trascrizione e ascolta dal punto che ti serve.</li>
+<li>La trascrizione si salva anche come file accanto all'audio. Niente esce dal Mac.</li>
+</ul>
+]]></description>
+            <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta-0.3.0.dmg" length="2099469" type="application/octet-stream" sparkle:edSignature="cDflDF9okLDQVvXX6DiHmJ1MpJuzKkmRuaDBgwXRlzVmY/qjrtyHKul/Avh9anwpjXb9WkBv6azZ4cZHo1LoAw=="/>
+            <sparkle:deltas>
+                <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta0.3.0-0.2.1.delta" sparkle:deltaFrom="0.2.1" length="414442" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862320" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="Ec6MByQDT4KF6mrJ8Q+i91DyvqKTQD4cN+uNEKkbQIqihnPhvP6TR6L3ScVk9duYwIXU6l95oRHlhPnfT98yAw=="/>
+                <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta0.3.0-0.2.0.delta" sparkle:deltaFrom="0.2.0" length="423526" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862320" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="LNunrIEXiMP+CW7ZZt1wFkN9YrRukyNDip8BomqlzAMG1DBKP1nhhG+oabKnIaBP9aa6QwyZUiBDzAeIAoqEDg=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>0.2.1</title>
             <pubDate>Wed, 14 Oct 2026 10:48:49 +0200</pubDate>
             <sparkle:version>0.2.1</sparkle:version>
