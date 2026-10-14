@@ -1,0 +1,9 @@
+bin/
+obj/
+publish/
+releases/
+upload/
+selftest-*.txt
+*.user
+.vs/
+TestResults/

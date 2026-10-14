@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Logica pura di Cornetta: mixer, livellatore, nomi dei file, rilevamento chiamate, feedback.
+       netstandard2.0 gira sia nell'app (.NET Framework 4.8) sia nei test (.NET 10, anche su Mac). -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>Cornetta.Core</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Solo per il resampler WDL (NAudio.Dsp), codice gestito senza dipendenze Windows. -->
+    <PackageReference Include="NAudio.Core" Version="2.2.1" />
+  </ItemGroup>
+</Project>

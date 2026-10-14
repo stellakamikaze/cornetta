@@ -1,0 +1,20 @@
+<Project>
+  <!-- Impostazioni comuni a tutti i progetti Windows di Cornetta. -->
+  <PropertyGroup>
+    <LangVersion>12.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Deterministic>true</Deterministic>
+    <Product>Cornetta</Product>
+    <Company>stellakamikaze</Company>
+    <Authors>stellakamikaze</Authors>
+    <Copyright>MIT</Copyright>
+    <!-- La versione arriva dal CI (-p:Version=0.3.0). In locale resta 0.0.0. -->
+    <Version Condition="'$(Version)' == ''">0.0.0</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <!-- Permette di compilare anche su macOS e Linux (solo verifica, l'app gira su Windows). -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);NETSDK1138</NoWarn>
+  </PropertyGroup>
+</Project>
