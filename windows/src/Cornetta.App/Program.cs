@@ -20,6 +20,7 @@ namespace Cornetta.App
 
             if (args.Contains("--selftest", StringComparer.OrdinalIgnoreCase)) return SelfTest.Run(args);
             if (args.Contains("--record", StringComparer.OrdinalIgnoreCase)) return Headless.Run(args);
+            if (args.Contains("--render-ui", StringComparer.OrdinalIgnoreCase)) return UiPreview.Run(args);
 
             using (var single = new Mutex(true, @"Local\Cornetta.Tray", out bool created))
             {

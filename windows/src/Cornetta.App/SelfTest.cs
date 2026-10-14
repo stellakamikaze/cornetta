@@ -24,11 +24,15 @@ namespace Cornetta.App
     {
         private static readonly List<string> Report = new List<string>();
         private static bool failed;
+        /// <summary>--selftest-poison: il sistema non scrive sulla linea del tempo. Il selftest DEVE fallire (prova che sa accorgersene).</summary>
+        private static bool poison;
 
         public static int Run(string[] args)
         {
             ConsoleOutput.Attach();
             string? reportPath = ArgumentAfter(args, "--selftest-out");
+            poison = args.Any(a => string.Equals(a, "--selftest-poison", StringComparison.OrdinalIgnoreCase));
+            if (poison) Line("VELENO: l'audio di sistema sintetico viene scartato, il selftest deve fallire.");
             try
             {
                 Task.Run(Execute).Wait();
@@ -128,7 +132,7 @@ namespace Cornetta.App
                     var mic = new float[441];
                     for (int i = 0; i < mic.Length; i++, micPhase++) mic[i] = 0.007f * (float)Math.Sin(2 * Math.PI * 220 * micPhase / 44_100.0);
                     pipeline.Microphone.Write(arrival, micResampler.Process(mic));
-                    if (arrival > 48_000 && arrival <= 96_000)
+                    if (!poison && arrival > 48_000 && arrival <= 96_000)
                     {
                         var system = new float[480 * 2];
                         for (int i = 0; i < 480; i++, systemPhase++)
@@ -256,10 +260,16 @@ namespace Cornetta.App
     {
         public static void Attach()
         {
-            if (Console.IsOutputRedirected) return;
+            if (Console.IsOutputRedirected)
+            {
+                // Output su file o pipe (CI): UTF-8, così «·» e le lettere accentate restano leggibili.
+                Console.SetOut(new StreamWriter(Console.OpenStandardOutput(), new System.Text.UTF8Encoding(false)) { AutoFlush = true });
+                return;
+            }
             if (NativeMethods.AttachConsole(NativeMethods.ATTACH_PARENT_PROCESS))
             {
-                var stdout = new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true };
+                try { Console.OutputEncoding = new System.Text.UTF8Encoding(false); } catch (Exception) { }
+                var stdout = new StreamWriter(Console.OpenStandardOutput(), new System.Text.UTF8Encoding(false)) { AutoFlush = true };
                 Console.SetOut(stdout);
                 Console.WriteLine();
             }

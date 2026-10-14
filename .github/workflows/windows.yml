@@ -91,6 +91,24 @@ jobs:
           Write-Host "Codice di uscita: $($p.ExitCode)"
           exit $p.ExitCode
 
+      - name: Il selftest sa fallire (veleno)
+        run: |
+          # Senza l'audio di sistema sintetico il selftest deve uscire con 1 e dire perché.
+          $report = Join-Path $PWD "selftest-veleno.txt"
+          $p = Start-Process -FilePath (Resolve-Path publish/Cornetta.exe) -ArgumentList "--selftest", "--selftest-poison", "--selftest-out", "`"$report`"" `
+                 -Wait -PassThru -NoNewWindow -RedirectStandardOutput (Join-Path $PWD "veleno-stdout.txt")
+          Get-Content $report
+          if ($p.ExitCode -ne 1) { throw "Col veleno il selftest doveva uscire con 1, invece: $($p.ExitCode)" }
+          if (-not (Select-String -Path $report -SimpleMatch "L'audio di sistema non è finito nel punto giusto" -Encoding utf8)) { throw "Il selftest è fallito per il motivo sbagliato" }
+          Write-Host "Veleno riconosciuto: il selftest fallisce col motivo atteso."
+
+      - name: Disegna i pannelli (--render-ui)
+        run: |
+          $dir = Join-Path $PWD "ui"
+          $p = Start-Process -FilePath (Resolve-Path publish/Cornetta.exe) -ArgumentList "--render-ui", "`"$dir`"" -Wait -PassThru -NoNewWindow
+          Get-ChildItem $dir | Format-Table Name, Length
+          exit $p.ExitCode
+
       - name: Installa vpk
         run: dotnet tool install -g vpk --version $env:VPK_VERSION
 
@@ -110,6 +128,7 @@ jobs:
             --packAuthors stellakamikaze `
             --icon src/Cornetta.App/Assets/cornetta.ico `
             --framework net48 `
+            --runtime win-x86 `
             --noPortable `
             --outputDir releases
           $setup = Get-ChildItem releases -Filter "*Setup.exe" | Select-Object -First 1
@@ -148,4 +167,12 @@ jobs:
           path: |
             windows/upload/
             windows/selftest-*.txt
+          if-no-files-found: warn
+
+      - name: Carica le immagini dei pannelli
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cornetta-windows-ui-${{ steps.version.outputs.version }}
+          path: windows/ui/
           if-no-files-found: warn

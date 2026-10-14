@@ -64,6 +64,67 @@ Il log dell'app sta in `~/Library/Logs/Cornetta/cornetta.log`.
 - Con le AirPods come microfono la qualità della chiamata scende (profilo Bluetooth per le chiamate). Vale per qualunque registratore.
 - La build universale (anche Mac Intel) richiede Xcode completo.
 
+## Windows
+
+La versione Windows sta in `windows/`. Fa le stesse cose della versione Mac: icona nell'area di notifica, pannello durante la registrazione, avviso quando parte una chiamata, feedback, aggiornamenti automatici.
+
+### Installazione
+
+1. Scarica `CornettaSetup.exe` da <https://cornetta.stellakamikaze.org/windows/CornettaSetup.exe> e aprilo. Non servono permessi di amministratore.
+2. Al primo avvio Windows mostra «Windows ha protetto il PC», perché l'installer non è firmato. Premi **Ulteriori informazioni**, poi **Esegui comunque**.
+3. Cornetta compare nell'area di notifica, vicino all'orologio. Se non la vedi, apri la freccia `^` accanto all'orologio.
+
+Se il microfono resta muto, apri **Impostazioni → Privacy e sicurezza → Microfono** e attiva **Consenti alle app desktop di accedere al microfono**.
+
+### Uso
+
+- **Avvia registrazione** (Ctrl+Alt+R da qualunque app): l'icona diventa un pallino rosso e compare il pannello in alto a destra.
+- **Ferma registrazione** (di nuovo Ctrl+Alt+R, oppure **Ferma** nel pannello): il file viene chiuso e salvato.
+- I file finiscono in `Musica\Cornetta\` con il nome `Chiamata AAAA-MM-GG HH.MM.m4a`.
+
+Il log sta in `%LOCALAPPDATA%\Cornetta\cornetta.log`.
+
+### Come funziona
+
+Cornetta legge l'audio di sistema con il loopback WASAPI dell'uscita predefinita e la tua voce con il microfono predefinito. Porta le due sorgenti a 48 kHz stereo e le mette su una linea del tempo comune, decisa da un orologio unico. Il loopback non manda pacchetti quando nessuno suona: Cornetta suona silenzio sull'uscita e riempie di zeri i buchi rimasti, così le due voci restano allineate. Il file è AAC 160 kbit/s con Media Foundation. Su Windows N senza Media Feature Pack Cornetta registra in WAV.
+
+Le chiamate si riconoscono dal registro di Windows (`ConsentStore\microphone`): quando un'app diversa da Cornetta usa il microfono da almeno 4 secondi, compare l'avviso.
+
+### Compilare e provare
+
+Serve il .NET SDK 10. L'app è per .NET Framework 4.8, già presente in Windows 10 e 11: il pacchetto pesa pochi MB e non installa runtime.
+
+```bash
+cd windows
+dotnet test Cornetta.Windows.sln                 # test (anche su Mac e Linux)
+dotnet build Cornetta.Windows.sln -c Release     # compila anche fuori da Windows, per controllo
+```
+
+Su un PC Windows:
+
+```bat
+Cornetta.exe --selftest                          :: dispositivi, encoder AAC, file di prova sintetico
+Cornetta.exe --record 10 --out C:\prova.m4a      :: 10 secondi di cattura vera, statistiche in C:\prova.m4a.json
+```
+
+Il CI (`.github/workflows/windows.yml`) compila, esegue i test con .NET 10 e .NET Framework 4.8, lancia `--selftest`, impacchetta con Velopack e prova l'installer.
+
+### Pubblicare una versione Windows
+
+```bash
+git tag win-v0.3.0 && git push origin win-v0.3.0   # il CI impacchetta la versione 0.3.0
+gh run watch                                       # aspetta la run verde
+windows/tools/publish.sh 0.3.0                     # copia in worker/public/windows/, deploy, verifica
+```
+
+Le app installate vedono la versione nuova all'avvio e ogni 4 ore.
+
+### Limiti noti su Windows
+
+- L'installer non è firmato: SmartScreen chiede «Ulteriori informazioni → Esegui comunque».
+- Cornetta registra l'uscita audio predefinita. Se l'app di chiamata usa un altro dispositivo (per esempio le cuffie impostate solo come «dispositivo di comunicazione»), la voce degli altri non entra nel file.
+- `wrangler deploy` pubblica tutta `worker/public`: deploya solo da una macchina che ha anche `worker/public/windows/`.
+
 ## Nota legale
 
 In Italia registrare una conversazione a cui partecipi è lecito per uso personale. Diffonderla senza il consenso delle altre persone non lo è. In altri paesi le regole cambiano: informati prima di registrare.

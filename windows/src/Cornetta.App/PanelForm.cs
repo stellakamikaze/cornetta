@@ -27,6 +27,9 @@ namespace Cornetta.App
         public static readonly Color MeterBlue = Color.FromArgb(0x2F, 0x7B, 0xF5);
         public static readonly Color MeterGreen = Color.FromArgb(0x2E, 0xA0, 0x43);
 
+        /// <summary>Solo per --render-ui: forza il tema chiaro (false) o scuro (true).</summary>
+        public static bool? Override { get; set; }
+
         public static Theme Current()
         {
             bool dark = false;
@@ -36,6 +39,7 @@ namespace Cornetta.App
                 {
                     dark = key?.GetValue("AppsUseLightTheme") is int v && v == 0;
                 }
+                if (Override.HasValue) dark = Override.Value;
             }
             catch (Exception) { }
             return dark

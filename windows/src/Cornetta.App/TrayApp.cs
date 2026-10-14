@@ -410,11 +410,12 @@ namespace Cornetta.App
             {
                 await updates.InstallAsync(
                     percent => invoker.BeginInvoke(new Action(() => SetTrayText("Cornetta · Aggiornamento " + percent + "%"))),
-                    () => { hotkey.Dispose(); tray.Visible = false; });
+                    () => { tray.Visible = false; });
             }
             catch (Exception ex)
             {
                 Diagnostics.Log("Aggiornamento non riuscito: " + ex.Message);
+                tray.Visible = true;
                 tray.ShowBalloonTip(8000, "Cornetta", "L'aggiornamento non è riuscito. Riprova più tardi.", ToolTipIcon.Warning);
             }
             installing = false;
