@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cornetta · registra le chiamate dal Mac</title>
+<meta name="description" content="Cornetta registra le chiamate dal Mac con qualunque app: la tua voce e quella delle altre persone in un solo file. Gratuita, si aggiorna da sola.">
+<link rel="icon" href="img/cornetta-icon.webp" type="image/webp">
+<style>
+@font-face { font-family: "Barlow Condensed"; src: url("fonts/barlow-condensed-600.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Barlow Condensed"; src: url("fonts/barlow-condensed-700.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+
+:root {
+  --paper: #f6f7f9;
+  --card: #ffffff;
+  --ink: #14213a;
+  --ink-2: #435069;
+  --rule: #d5dbe5;
+  --rule-strong: #14213a;
+  --stripe-1: #e5432d;
+  --stripe-2: #f08a24;
+  --stripe-3: #f5c22e;
+  --rec: #d42a1f;
+  --rec-deep: #9e1c14;
+  --focus: #1f5fd6;
+  --label: "Barlow Condensed", "Avenir Next Condensed", "Arial Narrow", sans-serif;
+  --text: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--paper); color: var(--ink); -webkit-text-size-adjust: 100%; }
+body { margin: 0; font: 400 1.1875rem/1.55 var(--text); background: var(--paper); }
+::selection { background: var(--stripe-3); color: var(--ink); }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-radius: 6px; }
+a { color: var(--ink); text-decoration-thickness: 1.5px; text-underline-offset: 0.18em; }
+a:hover { color: var(--rec); }
+html { scrollbar-color: var(--ink-2) var(--paper); }
+
+/* La copertina della cassetta: dorso a sinistra, fascia a righe in alto. */
+.jcard {
+  max-width: 1040px;
+  margin: clamp(0px, 4vw, 48px) auto;
+  background: var(--card);
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  box-shadow: 0 1px 2px rgb(20 33 58 / 8%), 0 18px 48px -18px rgb(20 33 58 / 28%);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.spine {
+  background: var(--ink);
+  color: var(--card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.spine span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font: 700 1.05rem/1 var(--label);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.spine b { color: var(--stripe-3); font-weight: 700; }
+.face { min-width: 0; }
+
+.stripes { display: grid; grid-template-rows: 14px 10px 6px; }
+.stripes i:nth-child(1) { background: var(--stripe-1); }
+.stripes i:nth-child(2) { background: var(--stripe-2); }
+.stripes i:nth-child(3) { background: var(--stripe-3); }
+
+.top {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 40px;
+  padding: 44px 48px 40px;
+  align-items: end;
+  border-bottom: 2px solid var(--rule-strong);
+}
+.brand { display: flex; gap: 18px; align-items: center; margin-bottom: 18px; }
+.brand img { width: 64px; height: 64px; }
+h1 {
+  font: 700 clamp(3.4rem, 8vw, 5.4rem)/0.88 var(--label);
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.promise { font-size: 1.375rem; line-height: 1.4; margin: 0; max-width: 30ch; text-wrap: balance; }
+.promise strong { font-weight: 650; }
+
+/* Il tasto REC: si abbassa come il tasto di una piastra. */
+.rec-wrap { display: grid; gap: 12px; justify-items: start; }
+.rec {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 30px 20px 22px;
+  background: var(--rec);
+  color: #fff;
+  text-decoration: none;
+  border-radius: 10px;
+  font: 700 1.75rem/1 var(--label);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  box-shadow: 0 6px 0 var(--rec-deep), 0 14px 24px -10px rgb(158 28 20 / 55%);
+  transform: translateY(0);
+  transition: transform 90ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 90ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 150ms;
+}
+.rec:hover { background: #e0311f; color: #fff; }
+.rec:active, .rec.pressed { transform: translateY(5px); box-shadow: 0 1px 0 var(--rec-deep), 0 4px 10px -6px rgb(158 28 20 / 55%); }
+.rec svg { flex: none; }
+.rec .dot { transition: opacity 400ms; }
+.rec.pressed .dot { animation: blink 1.1s ease-in-out infinite; }
+@keyframes blink { 50% { opacity: 0.35; } }
+.meta { font-size: 0.95rem; color: var(--ink-2); margin: 0; font-variant-numeric: tabular-nums; }
+.meta b { color: var(--ink); font-weight: 600; }
+.notice {
+  font-size: 1rem;
+  margin: 0;
+  padding: 12px 14px;
+  background: #fff6d6;
+  border: 1px solid #ecd27a;
+  border-radius: 8px;
+  max-width: 36ch;
+}
+.notice[hidden] { display: none; }
+.notice button {
+  font: 600 0.95rem var(--text);
+  margin-top: 8px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--ink);
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+/* I due lati della cassetta. */
+.side { padding: 36px 48px 12px; }
+.side + .side { border-top: 2px solid var(--rule-strong); }
+.side-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 8px; }
+h2 { font: 700 2rem/1 var(--label); text-transform: uppercase; letter-spacing: 0.02em; margin: 0; }
+.side-letter {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--card);
+  font: 700 1.35rem/1 var(--label);
+  flex: none;
+  align-self: center;
+}
+.side-note { color: var(--ink-2); font-size: 1rem; margin: 0 0 8px; }
+
+ol.tracks { list-style: none; margin: 0; padding: 0; }
+.track {
+  display: grid;
+  grid-template-columns: 48px 1fr 150px;
+  gap: 20px;
+  padding: 22px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.track:last-child { border-bottom: 0; }
+.num { font: 700 2.1rem/1 var(--label); font-variant-numeric: tabular-nums; color: var(--ink); padding-top: 2px; }
+.track h3 { font: 650 1.25rem/1.3 var(--text); margin: 0 0 6px; }
+.track p { margin: 0 0 8px; max-width: 62ch; }
+.track p:last-child { margin-bottom: 0; }
+.say { color: var(--ink-2); }
+.key {
+  font: 600 0.95em/1 var(--text);
+  white-space: nowrap;
+  padding: 2px 8px;
+  border: 1px solid var(--ink-2);
+  border-radius: 5px;
+  background: var(--paper);
+  box-shadow: 0 1.5px 0 var(--ink-2);
+}
+.path { font-weight: 600; }
+
+/* Durata: cifre a destra, barra lunga quanto il tempo del passo. */
+.time { display: grid; align-content: start; justify-items: end; gap: 8px; padding-top: 6px; }
+.time span { font: 600 1.3rem/1 var(--label); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+.time i { display: block; height: 6px; width: calc(var(--s) / 60 * 100%); background: var(--stripe-2); border-radius: 3px; }
+
+.uses .track { grid-template-columns: 48px 1fr; }
+.glyph { width: 34px; height: 34px; color: var(--ink); margin-top: 2px; }
+.glyph.rec-glyph { color: var(--rec); }
+
+.flap {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+  padding: 30px 48px 34px;
+  background: var(--ink);
+  color: #e6ebf3;
+  font-size: 0.98rem;
+}
+.flap h4 { font: 700 1.05rem/1 var(--label); text-transform: uppercase; letter-spacing: 0.12em; color: var(--stripe-3); margin: 0 0 10px; }
+.flap p { margin: 0; }
+.flap a { color: #fff; }
+.colophon { text-align: center; color: var(--ink-2); font-size: 0.9rem; margin: 0 16px 40px; }
+
+@media (max-width: 860px) {
+  .jcard { grid-template-columns: 1fr; margin: 0; border-radius: 0; }
+  .spine { padding: 10px 16px; justify-content: flex-start; }
+  .spine span { writing-mode: horizontal-tb; transform: none; font-size: 0.9rem; letter-spacing: 0.24em; }
+  .top { grid-template-columns: 1fr; gap: 28px; padding: 32px 20px 30px; }
+  .side { padding: 30px 20px 6px; }
+  .track { grid-template-columns: 36px 1fr; gap: 14px; }
+  .track .time { grid-column: 2; justify-items: start; padding-top: 0; grid-row: 2; }
+  .time i { width: calc(var(--s) / 60 * 140px); }
+  .num { font-size: 1.7rem; }
+  .flap { grid-template-columns: 1fr; gap: 22px; padding: 28px 20px; }
+  .rec { font-size: 1.5rem; padding: 18px 24px 18px 18px; width: 100%; justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rec, .rec .dot { transition: none; animation: none !important; }
+}
+</style>
+</head>
+<body>
+<main class="jcard">
+  <div class="spine" aria-hidden="true"><span>Cornetta · <b>Lato A</b> installa · <b>Lato B</b> usa</span></div>
+  <div class="face">
+    <div class="stripes" aria-hidden="true"><i></i><i></i><i></i></div>
+
+    <header class="top">
+      <div>
+        <div class="brand">
+          <img src="img/cornetta-icon.webp" alt="" width="64" height="64">
+          <h1>Cornetta</h1>
+        </div>
+        <p class="promise">Registra le chiamate dal Mac, con <strong>qualunque app</strong>: WhatsApp, FaceTime, Meet, Zoom, Teams. La tua voce e quella delle altre persone, in un solo file.</p>
+      </div>
+      <div class="rec-wrap">
+        <a class="rec" id="download" href="/download" download>
+          <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="13" fill="none" stroke="#fff" stroke-width="2.5"/><circle class="dot" cx="15" cy="15" r="7.5" fill="#fff"/></svg>
+          <span id="download-label">Scarica per Mac</span>
+        </a>
+        <p class="meta" id="meta"><b>Cornetta.dmg</b> · gratuita · per macOS 14.4 o successivo, Mac Apple e Intel</p>
+        <p class="notice" id="not-mac" hidden>
+          Stai guardando la pagina dal telefono. Cornetta funziona sul Mac: apri questo link dal computer.
+          <br><button type="button" id="copy-link">Copia il link</button>
+        </p>
+      </div>
+    </header>
+
+    <section class="side" aria-labelledby="lato-a">
+      <div class="side-head"><span class="side-letter" aria-hidden="true">A</span><h2 id="lato-a">Installazione</h2></div>
+      <p class="side-note">Quattro passi, circa due minuti. Si fa una volta sola.</p>
+      <ol class="tracks">
+        <li class="track">
+          <span class="num" aria-hidden="true">1</span>
+          <div>
+            <h3>Scarica</h3>
+            <p>Premi il tasto rosso. Il file <span class="path">Cornetta.dmg</span> finisce nella cartella Download.</p>
+          </div>
+          <div class="time" style="--s: 10"><span>0:10</span><i></i></div>
+        </li>
+        <li class="track">
+          <span class="num" aria-hidden="true">2</span>
+          <div>
+            <h3>Trascina in Applicazioni</h3>
+            <p>Apri <span class="path">Cornetta.dmg</span> dalla cartella Download. Si apre una finestra con l'icona rossa di Cornetta e la cartella Applicazioni: trascina l'icona sulla cartella.</p>
+          </div>
+          <div class="time" style="--s: 20"><span>0:20</span><i></i></div>
+        </li>
+        <li class="track">
+          <span class="num" aria-hidden="true">3</span>
+          <div>
+            <h3>Sblocca il primo avvio</h3>
+            <p>Apri Cornetta da Applicazioni. macOS mostra un avviso e non la apre: succede con le app gratuite che non passano dall'App Store. Premi <span class="key">Fine</span>, non spostarla nel Cestino.</p>
+            <p>Apri <span class="path">Impostazioni di Sistema › Privacy e sicurezza</span>, scorri in fondo e premi <span class="key">Apri comunque</span>. Conferma con la password del Mac.</p>
+            <p class="say">Serve solo la prima volta. Gli aggiornamenti poi si installano da soli.</p>
+          </div>
+          <div class="time" style="--s: 60"><span>1:00</span><i></i></div>
+        </li>
+        <li class="track">
+          <span class="num" aria-hidden="true">4</span>
+          <div>
+            <h3>Dai i due permessi</h3>
+            <p>Alla prima registrazione Cornetta chiede il <strong>Microfono</strong>, per la tua voce, e la <strong>Registrazione audio di sistema</strong>, per la voce degli altri. Premi <span class="key">Consenti</span> a tutti e due.</p>
+          </div>
+          <div class="time" style="--s: 15"><span>0:15</span><i></i></div>
+        </li>
+      </ol>
+    </section>
+
+    <section class="side uses" aria-labelledby="lato-b">
+      <div class="side-head"><span class="side-letter" aria-hidden="true">B</span><h2 id="lato-b">Come si usa</h2></div>
+      <ol class="tracks">
+        <li class="track">
+          <svg class="glyph rec-glyph" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="14" fill="none" stroke="currentColor" stroke-width="2.5"/><circle cx="17" cy="17" r="7" fill="currentColor"/></svg>
+          <div>
+            <h3>Registra</h3>
+            <p>Cornetta vive in alto a destra, nella barra dei menu, con l'icona di una cornetta. Premi l'icona e scegli <span class="key">Avvia registrazione</span>, oppure <span class="key">⌘ R</span>.</p>
+          </div>
+        </li>
+        <li class="track">
+          <svg class="glyph" viewBox="0 0 34 34" aria-hidden="true"><path d="M9 6.5c1.2-.8 2.8-.6 3.7.6l2.4 3.4c.8 1.1.6 2.6-.4 3.5l-1.6 1.3c1.4 2.8 3.4 4.8 6.2 6.2l1.3-1.6c.9-1 2.4-1.2 3.5-.4l3.4 2.4c1.2.9 1.4 2.5.6 3.7l-1.4 1.9c-1 1.4-2.8 2-4.4 1.4C14.6 27 7.4 19.8 5.6 12.1c-.4-1.6.2-3.3 1.5-4.3z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg>
+          <div>
+            <h3>Quando parte una chiamata</h3>
+            <p>Se un'app inizia a usare il microfono, Cornetta lo nota e chiede se vuoi registrare. Un clic su <span class="key">Registra</span> e parte.</p>
+          </div>
+        </li>
+        <li class="track">
+          <svg class="glyph" viewBox="0 0 34 34" aria-hidden="true"><rect x="8" y="8" width="18" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="2.5"/></svg>
+          <div>
+            <h3>Ferma e ritrova il file</h3>
+            <p>Durante la registrazione un pannello in alto a destra mostra il tempo e i livelli delle voci. Premi <span class="key">Ferma</span>: il file si salva in <span class="path">Musica › Cornetta</span>.</p>
+          </div>
+        </li>
+        <li class="track">
+          <svg class="glyph" viewBox="0 0 34 34" aria-hidden="true"><path d="M17 6v15m0 0-6-6m6 6 6-6M7 27h20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div>
+            <h3>Gli aggiornamenti arrivano da soli</h3>
+            <p>Quando esce una versione nuova compare un avviso <span class="path">Aggiornamento disponibile</span>. Premi <span class="key">Aggiorna ora</span>: in pochi secondi Cornetta si riapre aggiornata.</p>
+          </div>
+        </li>
+        <li class="track">
+          <svg class="glyph" viewBox="0 0 34 34" aria-hidden="true"><path d="M6 8.5A2.5 2.5 0 0 1 8.5 6h17A2.5 2.5 0 0 1 28 8.5v12a2.5 2.5 0 0 1-2.5 2.5H14l-6 5v-5h0.5A2.5 2.5 0 0 1 6 20.5z" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linejoin="round"/><path d="M17 11v5m0 3v.5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+          <div>
+            <h3>Qualcosa non va? Dillo</h3>
+            <p>Premi <span class="key">Feedback</span> nel pannello o nel menu e scrivi cosa è successo. Il messaggio arriva direttamente a chi sviluppa Cornetta.</p>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <footer class="flap">
+      <div>
+        <h4>Privacy</h4>
+        <p>Le registrazioni restano sul tuo Mac. Cornetta non le invia a nessuno. Parte solo il feedback che scrivi tu.</p>
+      </div>
+      <div>
+        <h4>Registrare è lecito?</h4>
+        <p>In Italia registrare una conversazione a cui partecipi è lecito per uso personale. Diffonderla senza il consenso delle altre persone no.</p>
+      </div>
+      <div>
+        <h4>Requisiti</h4>
+        <p>macOS 14.4 o successivo. Mac con chip Apple o Intel. Con le AirPods come microfono la qualità della chiamata scende: vale per qualunque registratore.</p>
+      </div>
+    </footer>
+  </div>
+</main>
+<p class="colophon" id="colophon">Cornetta è gratuita.</p>
+
+<script>
+(function () {
+  // Versione e peso letti dal feed degli aggiornamenti: la pagina non va mai fuori sincrono.
+  fetch("appcast.xml", { cache: "no-store" })
+    .then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
+    .then(function (xml) {
+      var doc = new DOMParser().parseFromString(xml, "application/xml");
+      var item = doc.querySelector("item");
+      var enclosure = item && item.querySelector("enclosure");
+      if (!enclosure) return;
+      var ns = "http://www.andymatuschak.org/xml-namespaces/sparkle";
+      var version = (item.getElementsByTagNameNS(ns, "shortVersionString")[0] || {}).textContent
+        || enclosure.getAttributeNS(ns, "shortVersionString") || "";
+      var bytes = Number(enclosure.getAttribute("length") || 0);
+      var size = bytes ? (bytes / 1048576).toLocaleString("it-IT", { maximumFractionDigits: 1 }) + " MB" : "";
+      document.getElementById("meta").innerHTML =
+        "<b>Cornetta " + version + "</b>" + (size ? " · " + size : "") + " · gratuita · macOS 14.4 o successivo, Mac Apple e Intel";
+      document.getElementById("colophon").textContent = "Cornetta " + version + " è gratuita e si aggiorna da sola.";
+    })
+    .catch(function () {});
+
+  var ua = navigator.userAgent;
+  var isPhone = /iPhone|iPad|Android/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  if (isPhone) {
+    document.getElementById("not-mac").hidden = false;
+    document.getElementById("copy-link").addEventListener("click", function (event) {
+      var button = event.currentTarget;
+      navigator.clipboard.writeText(location.href).then(function () { button.textContent = "Link copiato"; });
+    });
+  }
+
+  var rec = document.getElementById("download");
+  rec.addEventListener("click", function () {
+    rec.classList.add("pressed");
+    document.getElementById("download-label").textContent = "Download avviato";
+    setTimeout(function () {
+      var next = document.querySelectorAll(".track")[1];
+      if (next) next.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
+    }, 900);
+  });
+})();
+</script>
+</body>
+</html>

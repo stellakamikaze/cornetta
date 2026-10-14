@@ -1,0 +1,7 @@
+/downloads/*
+  Content-Type: application/x-apple-diskimage
+  Content-Disposition: attachment
+
+/appcast.xml
+  Content-Type: application/rss+xml; charset=utf-8
+  Cache-Control: no-cache

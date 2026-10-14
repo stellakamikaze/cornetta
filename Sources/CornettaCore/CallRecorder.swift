@@ -52,6 +52,8 @@ public final class CallRecorder {
     private var lastCallbackCount = 0
     private var usesMicrophone = true
     public private(set) var restartCount = 0
+    /// Livelli in tempo reale di microfono e chiamata.
+    public let meter = LevelMeter()
 
     public init(outputURL: URL, debugDirectory: URL? = nil) {
         self.outputURL = outputURL
@@ -72,7 +74,7 @@ public final class CallRecorder {
     /// Avvia la registrazione. Va chiamato dalla coda principale.
     public func start(useMicrophone: Bool = true) throws {
         guard !isRunning else { return }
-        writer = try TrackWriter(outputURL: outputURL, debugDirectory: debugDirectory)
+        writer = try TrackWriter(outputURL: outputURL, debugDirectory: debugDirectory, meter: meter)
         do {
             tap = try SystemAudioTap()
             try startCapture(useMicrophone: useMicrophone)
@@ -241,4 +243,36 @@ final class Counter: @unchecked Sendable {
     var value: Int { lock.withLock { count } }
     @discardableResult
     func increment() -> Int { lock.withLock { count += 1; return count } }
+}
+
+/// Livelli correnti per gli indicatori dell'interfaccia (aggiornati dal writer, letti dalla UI).
+public final class LevelMeter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var micLevel: Float = 0
+    private var systemLevel: Float = 0
+    private var gain: Float = 1
+
+    public init() {}
+
+    func update(mic: Float, system: Float, micGain: Float) {
+        lock.withLock {
+            // Discesa lenta: l'indicatore non sfarfalla.
+            micLevel = max(mic, micLevel * 0.85)
+            systemLevel = max(system, systemLevel * 0.85)
+            gain = micGain
+        }
+    }
+
+    /// Livelli 0...1 su scala in dB (da -50 dB a 0 dB).
+    public var levels: (mic: Float, system: Float) {
+        lock.withLock { (Self.scale(micLevel), Self.scale(systemLevel)) }
+    }
+
+    public var micGain: Float { lock.withLock { gain } }
+
+    static func scale(_ rms: Float) -> Float {
+        guard rms > 0 else { return 0 }
+        let db = 20 * log10(rms)
+        return min(max((db + 50) / 50, 0), 1)
+    }
 }

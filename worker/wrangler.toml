@@ -1,0 +1,17 @@
+name = "cornetta"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/api/*"]
+
+[[kv_namespaces]]
+binding = "FEEDBACK"
+id = "0071efedaeb74429b6cc2325753f653f"
+
+[[routes]]
+pattern = "cornetta.stellakamikaze.org"
+custom_domain = true

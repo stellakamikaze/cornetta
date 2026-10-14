@@ -32,6 +32,18 @@
 	<string>Cornetta registra la tua voce durante le chiamate.</string>
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>Cornetta registra l'audio delle chiamate, cioè la voce delle altre persone.</string>
+	<key>CornettaServiceURL</key>
+	<string>https://cornetta.stellakamikaze.org</string>
+	<key>SUFeedURL</key>
+	<string>https://cornetta.stellakamikaze.org/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>g5sWwpSotf6n3Lms1HELQq4K4eo3v6KZQq7Z88m60Hk=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>14400</integer>
+	<key>SUAllowsAutomaticUpdates</key>
+	<false/>
 	<key>NSHumanReadableCopyright</key>
 	<string>Software libero, licenza MIT.</string>
 </dict>

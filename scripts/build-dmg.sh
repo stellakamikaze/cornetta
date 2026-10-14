@@ -1,16 +1,23 @@
 #!/bin/bash
-# Compila Cornetta, monta Cornetta.app, la firma ad-hoc e produce dist/Cornetta.dmg.
+# Compila Cornetta (universale arm64 + x86_64), monta Cornetta.app con Sparkle, la firma e produce il DMG.
+#   VERSION=0.2.0 scripts/build-dmg.sh   →   dist/Cornetta-0.2.0.dmg
+# Firma: usa l'identità «Cornetta Self-Signed» se è nel portachiavi (permessi stabili fra versioni),
+# altrimenti firma ad-hoc. SIGN_IDENTITY la sovrascrive.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-VERSION="${VERSION:-$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || true)}"
-VERSION="${VERSION:-0.1.0}"
-BUILD="$(git rev-list --count HEAD 2>/dev/null || echo 1)"
+VERSION="${VERSION:-0.0.0-dev}"
 APP="build/Cornetta.app"
+if [ -z "${SIGN_IDENTITY:-}" ]; then
+  if security find-identity -p codesigning | grep -q "Cornetta Self-Signed"; then SIGN_IDENTITY="Cornetta Self-Signed"; else SIGN_IDENTITY="-"; fi
+fi
 
-echo "→ Compilo (release, arm64)"
-swift build -c release --arch arm64
-BIN="$(swift build -c release --arch arm64 --show-bin-path)/Cornetta"
+echo "→ Compilo (release, arm64 + x86_64)"
+for arch in arm64 x86_64; do
+  swift build -c release --arch "$arch" >/dev/null
+done
+ARM="$(swift build -c release --arch arm64 --show-bin-path)/Cornetta"
+X86="$(swift build -c release --arch x86_64 --show-bin-path)/Cornetta"
 
 echo "→ Icona"
 mkdir -p build
@@ -25,24 +32,35 @@ if [ ! -f build/AppIcon.icns ]; then
   iconutil -c icns "$ICONSET" -o build/AppIcon.icns
 fi
 
-echo "→ Bundle $APP (versione $VERSION, build $BUILD)"
+echo "→ Bundle $APP (versione $VERSION)"
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$BIN" "$APP/Contents/MacOS/Cornetta"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
+lipo -create "$ARM" "$X86" -output "$APP/Contents/MacOS/Cornetta"
 cp build/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
-sed -e "s/__VERSION__/$VERSION/" -e "s/__BUILD__/$BUILD/" Resources/Info.plist > "$APP/Contents/Info.plist"
+SPARKLE=".build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework"
+ditto "$SPARKLE" "$APP/Contents/Frameworks/Sparkle.framework"
+sed -e "s/__VERSION__/$VERSION/" -e "s/__BUILD__/$VERSION/" Resources/Info.plist > "$APP/Contents/Info.plist"
 plutil -lint "$APP/Contents/Info.plist" >/dev/null
 
-echo "→ Firma ad-hoc"
-codesign --force --sign - --identifier com.stellakamikaze.cornetta "$APP"
-codesign --verify --strict "$APP"
+echo "→ Firma ($SIGN_IDENTITY)"
+SP="$APP/Contents/Frameworks/Sparkle.framework/Versions/B"
+sign() { codesign --force --sign "$SIGN_IDENTITY" "$@"; }
+sign "$SP/XPCServices/Installer.xpc"
+sign --preserve-metadata=entitlements "$SP/XPCServices/Downloader.xpc"
+sign "$SP/Autoupdate"
+sign "$SP/Updater.app"
+sign "$APP/Contents/Frameworks/Sparkle.framework"
+sign --identifier com.stellakamikaze.cornetta "$APP"
+codesign --verify --deep --strict "$APP"
 
 echo "→ DMG"
 mkdir -p dist
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
-cp -R "$APP" "$STAGE/"
+ditto "$APP" "$STAGE/Cornetta.app"
 ln -s /Applications "$STAGE/Applicazioni"
-rm -f dist/Cornetta.dmg
-hdiutil create -volname "Cornetta" -srcfolder "$STAGE" -fs HFS+ -format UDZO -ov dist/Cornetta.dmg >/dev/null
-echo "✓ dist/Cornetta.dmg ($(du -h dist/Cornetta.dmg | cut -f1))"
+DMG="dist/Cornetta-$VERSION.dmg"
+rm -f "$DMG"
+hdiutil create -volname "Cornetta" -srcfolder "$STAGE" -fs HFS+ -format UDZO -ov "$DMG" >/dev/null
+sign "$DMG"
+echo "✓ $DMG ($(du -h "$DMG" | cut -f1))"

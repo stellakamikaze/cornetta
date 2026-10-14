@@ -10,9 +10,12 @@ final class TrackWriter {
     private var systemFile: AVAudioFile?
     private let debugDirectory: URL?
     private var converter: AVAudioConverter?
+    private var leveler = VoiceLeveler()
     private(set) var stats = CallRecorder.Stats()
+    let meter: LevelMeter
 
-    init(outputURL: URL, debugDirectory: URL?) throws {
+    init(outputURL: URL, debugDirectory: URL?, meter: LevelMeter) throws {
+        self.meter = meter
         try FileManager.default.createDirectory(at: outputURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         let settings: [String: Any] = [
             AVFormatIDKey: kAudioFormatMPEG4AAC,
@@ -36,7 +39,10 @@ final class TrackWriter {
                      systemRMS: max(Mixer.rms(systemStereo.left), Mixer.rms(systemStereo.right)),
                      frames: frameCount, sampleRate: sampleRate, hasMicrophone: !mic.isEmpty)
 
-        let mixed = Mixer.mix(mic: mic, system: system, frameCount: frameCount)
+        let systemRMS = max(Mixer.rms(systemStereo.left), Mixer.rms(systemStereo.right))
+        let leveledMic = mic.isEmpty ? [] : [leveler.process(micMono, systemRMS: systemRMS, sampleRate: sampleRate)]
+        meter.update(mic: leveledMic.first.map(Mixer.rms) ?? 0, system: systemRMS, micGain: leveler.gain)
+        let mixed = Mixer.mix(mic: leveledMic, system: system, frameCount: frameCount)
         let buffer = try makeBuffer([mixed.left, mixed.right], sampleRate: sampleRate)
 
         if sampleRate == Self.fileSampleRate {
