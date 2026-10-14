@@ -11,6 +11,7 @@ final class UpdateManager: NSObject, ObservableObject, SPUUpdaterDelegate, SPUSt
     @Published private(set) var availableVersion: String?
     var onUpdateFound: ((String) -> Void)?
     private var controller: SPUStandardUpdaterController!
+    private var raiseTimer: Timer?
 
     override init() {
         super.init()
@@ -27,6 +28,27 @@ final class UpdateManager: NSObject, ObservableObject, SPUUpdaterDelegate, SPUSt
     func installOrCheck() {
         NSApp.activate(ignoringOtherApps: true)
         controller.checkForUpdates(nil)
+        keepSparkleWindowsInFront()
+    }
+
+    /// Un'app della barra dei menu non diventa attiva dal clic su un pannello: macOS lascia le finestre
+    /// di Sparkle dietro le altre app e chi ha premuto «Aggiorna ora» non vede niente. Le porta davanti
+    /// per tutta la sessione di aggiornamento (novità, scaricamento, «Installa e Riavvia»).
+    private func keepSparkleWindowsInFront() {
+        raiseTimer?.invalidate()
+        let sparkle = Bundle(for: SPUUpdater.self)
+        var raised = Set<ObjectIdentifier>()
+        raiseTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { _ in
+            MainActor.assumeIsolated {
+                for window in NSApp.windows where window.isVisible {
+                    guard let owner = window.windowController, Bundle(for: type(of: owner)) == sparkle else { continue }
+                    guard raised.insert(ObjectIdentifier(window)).inserted else { continue }
+                    window.level = .floating
+                    window.orderFrontRegardless()
+                    window.makeKey()
+                }
+            }
+        }
     }
 
     // MARK: - SPUUpdaterDelegate
@@ -63,6 +85,10 @@ final class UpdateManager: NSObject, ObservableObject, SPUUpdaterDelegate, SPUSt
     }
 
     nonisolated func standardUserDriverWillFinishUpdateSession() {
-        Task { @MainActor in self.availableVersion = nil }
+        Task { @MainActor in
+            self.availableVersion = nil
+            self.raiseTimer?.invalidate()
+            self.raiseTimer = nil
+        }
     }
 }
