@@ -1,0 +1,24 @@
+# Cornetta
+
+> Cornetta is a free call recorder for Mac (macOS 14.4 or later, Apple Silicon and Intel). It records your voice from the microphone and the other people from system audio into one .m4a file, with any calling app: WhatsApp, FaceTime, Google Meet, Zoom, Microsoft Teams, Slack, Discord, Telegram, browser calls. No account, no audio driver, no subscription. Made by Federico Nejrotti. Interface in Italian.
+
+Key facts:
+- Price: free. No account, no ads, no data collection; recordings never leave the Mac.
+- How it works: Core Audio process taps (macOS 14.2+) capture system audio; the microphone and the tap share one private aggregate device, so both voices stay in sync. No BlackHole or virtual driver.
+- Output: .m4a (AAC, 48 kHz, stereo) in ~/Music/Cornetta, file named "Chiamata YYYY-MM-DD HH.MM.m4a".
+- Your voice is levelled up to +24 dB to match the call; the boost pauses while the other person talks so speaker echo is not amplified.
+- Detects when an app starts using the microphone and offers to record; suggests stopping when the call ends.
+- Floating panel while recording: elapsed time, level meters for you and the others, Stop, Feedback.
+- Automatic updates (Sparkle, EdDSA-signed) with a visible in-app notice.
+- First launch: the app is not from the App Store, so macOS asks to confirm it in System Settings › Privacy & Security › Open Anyway. Two permissions: Microphone and System Audio Recording.
+- Not available on iPhone or Android: iOS gives no app access to call audio, Android blocks it for regular apps since Android 10. A Windows version is in development.
+- Legal (Italy): recording a conversation you take part in is lawful for personal use; sharing it without consent is not. Other countries differ.
+
+## Pages
+- [Cornetta (Italiano)](https://cornetta.stellakamikaze.org/): home page, features, install guide, FAQ
+- [Cornetta (English)](https://cornetta.stellakamikaze.org/en/): same content in English
+
+## Downloads
+- [Download for Mac](https://cornetta.stellakamikaze.org/download): latest signed disk image
+- [Latest version info](https://cornetta.stellakamikaze.org/downloads/latest.json): version, size, SHA-256
+- [Update feed](https://cornetta.stellakamikaze.org/appcast.xml): Sparkle appcast with release notes

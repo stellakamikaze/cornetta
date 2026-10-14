@@ -29,6 +29,18 @@ cp "dist/Cornetta-$VERSION.dmg" "$DOWNLOADS/"
 "$SPARKLE_BIN/generate_appcast" --account cornetta --download-url-prefix "$BASE_URL/downloads/" \
   --embed-release-notes -o worker/public/appcast.xml "$DOWNLOADS"
 printf '/download /downloads/Cornetta-%s.dmg 302\n' "$VERSION" > worker/public/_redirects
+# latest.json: versione, peso e SHA-256 letti dalla pagina. Conserva la voce Windows se c'è.
+python3 - "$VERSION" "dist/Cornetta-$VERSION.dmg" "$BASE_URL" <<'PY'
+import hashlib, json, os, sys
+version, dmg, base = sys.argv[1:4]
+path = "worker/public/downloads/latest.json"
+latest = json.load(open(path)) if os.path.exists(path) else {}
+latest["mac"] = {"version": version, "size": os.path.getsize(dmg),
+                 "sha256": hashlib.sha256(open(dmg, "rb").read()).hexdigest(), "url": base + "/download"}
+json.dump(latest, open(path, "w"), indent=2)
+PY
+# La versione nei dati strutturati delle due pagine segue la release.
+sed -i '' -E "s/\"softwareVersion\": \"[^\"]+\"/\"softwareVersion\": \"$VERSION\"/" worker/public/index.html worker/public/en/index.html
 
 (cd worker && npx -y wrangler@4 deploy)
 
@@ -45,7 +57,7 @@ done
 [ "$FEED_OK" -ge 1 ] || { echo "Il feed pubblicato non contiene $VERSION"; exit 1; }
 [ "$REMOTE" = "$LOCAL" ] || { echo "Il DMG scaricato non coincide con quello locale"; exit 1; }
 
-git add worker/public/appcast.xml worker/public/_redirects
+git add worker/public/appcast.xml worker/public/_redirects worker/public/index.html worker/public/en/index.html
 git commit -q -m "Release $VERSION"
 git tag "v$VERSION"
 git push -q origin HEAD "v$VERSION"

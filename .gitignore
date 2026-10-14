@@ -5,3 +5,6 @@ build/
 *.xcodeproj/
 .swiftpm/
 .impeccable/review/
+.claude/
+.impeccable/decision/
+.impeccable/questions/

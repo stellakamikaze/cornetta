@@ -1,0 +1,69 @@
+// Cornetta · sito. Script unico, servito come file (CSP: script-src 'self').
+(function () {
+  "use strict";
+  var it = document.documentElement.lang !== "en";
+  var t = it
+    ? { mac: "Scarica per Mac", win: "Scarica per Windows", phone: "Cornetta funziona sul computer: apri questa pagina dal Mac o dal PC.", winSoon: "La versione per Windows è in arrivo.", copy: "Copia il link", copied: "Link copiato", mb: "MB", version: "Versione" }
+    : { mac: "Download for Mac", win: "Download for Windows", phone: "Cornetta runs on your computer: open this page on your Mac or PC.", winSoon: "The Windows version is coming soon.", copy: "Copy link", copied: "Link copied", mb: "MB", version: "Version" };
+
+  var ua = navigator.userAgent;
+  var isPhone = /iPhone|iPad|iPod|Android/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  var isWindows = /Windows/i.test(ua);
+
+  function size(bytes) {
+    return (bytes / 1048576).toLocaleString(it ? "it-IT" : "en-US", { maximumFractionDigits: 1 }) + " " + t.mb;
+  }
+
+  // Versione, peso e checksum veri, dal file che pubblica lo script di rilascio.
+  fetch("/downloads/latest.json", { cache: "no-store" })
+    .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+    .then(function (latest) {
+      document.querySelectorAll("[data-meta]").forEach(function (el) {
+        var platform = el.getAttribute("data-meta");
+        var info = latest[platform];
+        if (!info) return;
+        el.textContent = t.version + " " + info.version + " · " + size(info.size) + " · " + el.getAttribute("data-requirements");
+      });
+      document.querySelectorAll("[data-sha]").forEach(function (el) {
+        var info = latest[el.getAttribute("data-sha")];
+        if (info && info.sha256) el.textContent = info.sha256;
+      });
+      if (latest.windows) {
+        document.querySelectorAll("[data-windows]").forEach(function (el) { el.hidden = false; });
+        document.querySelectorAll("[data-windows-soon]").forEach(function (el) { el.hidden = true; });
+        if (isWindows) {
+          document.querySelectorAll("[data-download-primary]").forEach(function (a) {
+            a.href = "/download/windows";
+            a.querySelector("span").textContent = t.win;
+          });
+        }
+      } else if (isWindows) {
+        var note = document.getElementById("os-note");
+        if (note) { note.textContent = t.winSoon; note.hidden = false; }
+      }
+    })
+    .catch(function () {});
+
+  if (isPhone) {
+    var note = document.getElementById("os-note");
+    if (note) {
+      note.textContent = t.phone + " ";
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "btn btn-secondary";
+      button.textContent = t.copy;
+      button.addEventListener("click", function () {
+        navigator.clipboard.writeText(location.href).then(function () { button.textContent = t.copied; });
+      });
+      note.appendChild(button);
+      note.hidden = false;
+    }
+  }
+
+  var nav = document.querySelector(".nav");
+  if (nav) {
+    var onScroll = function () { nav.classList.toggle("scrolled", window.scrollY > 8); };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+  }
+})();
