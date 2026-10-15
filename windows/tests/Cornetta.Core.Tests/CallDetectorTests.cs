@@ -20,8 +20,8 @@ namespace Cornetta.Core.Tests
             Assert.Equal("Chrome", CallDetector.DisplayName(@"C:#Program Files#Google#Chrome#Application#chrome.exe", false));
             Assert.Equal("Edge", CallDetector.DisplayName(@"C:#Program Files (x86)#Microsoft#Edge#Application#msedge.exe", false));
             Assert.Equal("Firefox", CallDetector.DisplayName(@"C:#Program Files#Mozilla Firefox#firefox.exe", false));
-            Assert.Equal("Zoom", CallDetector.DisplayName(@"C:#Users#liliana#AppData#Roaming#Zoom#bin#Zoom.exe", false));
-            Assert.Equal("Discord", CallDetector.DisplayName(@"C:#Users#liliana#AppData#Local#Discord#app-1.0.9#Discord.exe", false));
+            Assert.Equal("Zoom", CallDetector.DisplayName(@"C:#Users#mario#AppData#Roaming#Zoom#bin#Zoom.exe", false));
+            Assert.Equal("Discord", CallDetector.DisplayName(@"C:#Users#mario#AppData#Local#Discord#app-1.0.9#Discord.exe", false));
             Assert.Equal("Teams", CallDetector.DisplayName("MSTeams_8wekyb3d8bbwe", true));
             Assert.Equal("WhatsApp", CallDetector.DisplayName("5319275A.WhatsAppDesktop_cv1g1gvanyjgm", true));
             Assert.Equal("Skype", CallDetector.DisplayName("Microsoft.SkypeApp_kzf8qxf38zg5c", true));
@@ -41,7 +41,7 @@ namespace Cornetta.Core.Tests
         {
             var uses = new List<MicrophoneUse>
             {
-                InUse(@"C:#Users#liliana#AppData#Local#Cornetta#current#Cornetta.exe", false, Now),
+                InUse(@"C:#Users#mario#AppData#Local#Cornetta#current#Cornetta.exe", false, Now),
                 InUse("Microsoft.WindowsSoundRecorder_8wekyb3d8bbwe", true, Now),
                 InUse("MicrosoftWindows.Client.CBS_cw5n1h2txyewy", true, Now),
                 InUse("5319275A.WhatsAppDesktop_cv1g1gvanyjgm", true, Now),
@@ -72,8 +72,8 @@ namespace Cornetta.Core.Tests
                 MicrophoneUse.FromProcess(@"C:\Program Files\WindowsApps\5319275A.WhatsAppDesktop_2.2442.6.0_x64__cv1g1gvanyjgm\WhatsApp.exe"),
                 MicrophoneUse.FromProcess(@"C:\Program Files\WindowsApps\MSTeams_25153.1010.3727.5483_x64__8wekyb3d8bbwe\ms-teams.exe"),
                 MicrophoneUse.FromProcess(@"C:\Program Files\WindowsApps\Microsoft.WindowsSoundRecorder_11.2508.4.0_x64__8wekyb3d8bbwe\VoiceRecorder.exe"),
-                MicrophoneUse.FromProcess(@"C:\Users\feder\AppData\Local\Cornetta\current\Cornetta.exe"),
-                MicrophoneUse.FromProcess(@"C:\Users\feder\AppData\Local\Discord\app-1.0.9219\Discord.exe"),
+                MicrophoneUse.FromProcess(@"C:\Users\mario\AppData\Local\Cornetta\current\Cornetta.exe"),
+                MicrophoneUse.FromProcess(@"C:\Users\mario\AppData\Local\Discord\app-1.0.9219\Discord.exe"),
                 MicrophoneUse.FromProcess(@"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"),
             };
             Assert.All(uses, u => Assert.True(u.InUse));

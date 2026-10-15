@@ -166,9 +166,9 @@ namespace Cornetta.Core.Tests
         public void PayloadMatchesTheMacSchemaWithPlatform()
         {
             var app = new FeedbackAppInfo { Version = "0.3.0", Build = "12", Os = "Windows 11 23H2", Arch = "x64", Microphone = "Microfono (Realtek)" };
-            string json = FeedbackPayload.ToJson("Ciao \"Federico\"\nriga due", "Liliana", "", "log", app);
+            string json = FeedbackPayload.ToJson("Ciao \"Federico\"\nriga due", "Mario", "", "log", app);
             Assert.Equal(
-                "{\"message\":\"Ciao \\\"Federico\\\"\\nriga due\",\"name\":\"Liliana\",\"email\":\"\",\"diagnostics\":\"log\",\"platform\":\"windows\"," +
+                "{\"message\":\"Ciao \\\"Federico\\\"\\nriga due\",\"name\":\"Mario\",\"email\":\"\",\"diagnostics\":\"log\",\"platform\":\"windows\"," +
                 "\"app\":{\"version\":\"0.3.0\",\"build\":\"12\",\"os\":\"Windows 11 23H2\",\"arch\":\"x64\",\"microphone\":\"Microfono (Realtek)\"}}",
                 json);
         }

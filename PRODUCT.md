@@ -12,7 +12,7 @@ Delegato (inferito dal brief, Federico ha detto «procedi»): HTML/CSS statico i
 
 ## Users
 
-Persone non tecniche che ricevono il link da Federico, per esempio familiari e colleghi (la prima è Liliana). Aprono il link dal Mac o dal telefono, scaricano un DMG e installano un'app non notarizzata. [Inferito]
+Persone non tecniche che ricevono il link da Federico, per esempio familiari e colleghi. Aprono il link dal Mac o dal telefono, scaricano un DMG e installano un'app non notarizzata. [Inferito]
 
 ## Product Purpose
 
