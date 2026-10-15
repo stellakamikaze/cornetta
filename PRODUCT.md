@@ -12,7 +12,7 @@ Delegato (inferito dal brief, Federico ha detto «procedi»): HTML/CSS statico i
 
 ## Users
 
-Persone non tecniche che ricevono il link da Federico, per esempio familiari e colleghi. Aprono il link dal Mac o dal telefono, scaricano un DMG e installano un'app non notarizzata. [Inferito]
+Chiunque abbia bisogno di registrare una chiamata dal computer, su Mac o su Windows. Molti non sono tecnici: arrivano dal link di un amico, da una ricerca o da una lista di app. Aprono il link dal Mac o dal telefono, scaricano un DMG e installano un'app non notarizzata. [Inferito]
 
 ## Product Purpose
 
@@ -20,7 +20,7 @@ Cornetta registra le chiamate dal Mac con qualunque app (WhatsApp, FaceTime, Mee
 
 ## Positioning
 
-Nessun driver audio virtuale da installare, nessun account, nessun abbonamento: un'icona nella barra dei menu, un clic per registrare. Propone da sola di registrare quando parte una chiamata.
+Un software gratis e open source per fare una cosa semplice che serve a tutti: registrare una chiamata (Federico, 15/10/2026). Il resto viene da lì: nessun driver audio virtuale da installare, nessun account, nessun abbonamento, un'icona nella barra dei menu e un clic per registrare. Propone da sola di registrare quando parte una chiamata. Ogni testo, dal sito ai post di lancio, parte da questo taglio: niente toni da prodotto premium, niente funzioni elencate per stupire.
 
 ## Capabilities and Constraints
 
