@@ -113,6 +113,8 @@ jobs:
         run: dotnet tool install -g vpk --version $env:VPK_VERSION
 
       - name: Scarica l'ultima release pubblicata (per i pacchetti delta)
+        # Solo per le versioni vere: una build di prova (0.0.<run>) è più bassa del feed pubblicato e vpk la rifiuta.
+        if: startsWith(github.ref, 'refs/tags/win-v') || inputs.version != ''
         continue-on-error: true
         run: vpk download http --url $env:FEED_URL --outputDir releases --allowEmptyChannel
 
