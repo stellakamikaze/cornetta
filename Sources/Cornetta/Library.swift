@@ -195,10 +195,12 @@ final class Library: ObservableObject {
             try save(transcript, for: url)
             transcripts[id] = transcript
             statuses[id] = .done
+            Telemetry.send(.trascrizione, outcome: "ok")
             Diagnostics.log(String(format: "Trascrizione pronta: %@, %d frasi in %.1f s", id, segments.count, Date().timeIntervalSince(started)))
             if let recording = recordings.first(where: { $0.id == id }) { onTranscriptReady?(recording) }
         } catch {
             statuses[id] = .failed(error.localizedDescription)
+            Telemetry.send(.trascrizione, outcome: "errore", code: TelemetryFields.errorCode(error))
             Diagnostics.log("Trascrizione non riuscita: \(id): \(error.localizedDescription)")
         }
     }

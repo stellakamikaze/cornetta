@@ -6,7 +6,22 @@ workers_dev = true
 [assets]
 directory = "./public"
 binding = "ASSETS"
-run_worker_first = ["/api/*"]
+run_worker_first = ["/api/*", "/js/p.js", "/download", "/download/*"]
+
+[[d1_databases]]
+binding = "TELEMETRY"
+database_name = "cornetta-telemetria"
+database_id = "0fb4fa0e-9799-4cb9-b020-8936edbde3f8"
+
+# Limite per IP della telemetria: senza scritture in KV, che costano.
+[[ratelimits]]
+name = "TELEMETRY_LIMIT"
+namespace_id = "1001"
+simple = { limit = 60, period = 60 }
+
+# Ogni notte si cancellano gli eventi di telemetria più vecchi di 12 mesi.
+[triggers]
+crons = ["17 3 * * *"]
 
 [[kv_namespaces]]
 binding = "FEEDBACK"

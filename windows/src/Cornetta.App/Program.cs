@@ -32,6 +32,8 @@ namespace Cornetta.App
                 Application.ThreadException += (_, e) => Diagnostics.Log("Errore non gestito: " + e.Exception);
                 AppDomain.CurrentDomain.UnhandledException += (_, e) => Diagnostics.Log("Errore fatale: " + e.ExceptionObject);
                 Diagnostics.Log("Avvio Cornetta " + AppInfo.Version + " da " + AppInfo.ExecutablePath);
+                // Qui e non nel costruttore di TrayApp: la prova --smoke-tray della CI non deve mandare eventi.
+                Telemetry.AppLaunched();
                 Application.Run(new TrayApp(firstRun));
                 GC.KeepAlive(single);
             }

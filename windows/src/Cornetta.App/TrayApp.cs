@@ -125,6 +125,8 @@ namespace Cornetta.App
             overlayItem.Checked = Settings.ShowOverlay;
             var proposeItem = Add("Proponi di registrare quando inizia una chiamata", () => Settings.ProposeOnCall = !Settings.ProposeOnCall);
             proposeItem.Checked = Settings.ProposeOnCall;
+            var telemetryItem = Add("Invia dati di funzionamento", () => Telemetry.IsEnabled = !Telemetry.IsEnabled);
+            telemetryItem.Checked = Telemetry.IsEnabled;
             Add("Controlla aggiornamenti…", async () => await CheckUpdates(manual: true));
             menu.Items.Add(new ToolStripSeparator());
             Info("Cornetta " + AppInfo.Version);
@@ -203,6 +205,7 @@ namespace Cornetta.App
             }
             catch (Exception ex)
             {
+                Telemetry.Send("registrazione", "errore", TelemetryPayload.ErrorCode(ex, "avvio"));
                 Diagnostics.Log("Avvio non riuscito: " + ex.Message);
                 message = ex is InvalidOperationException ? ex.Message : "Non riesco ad avviare la registrazione: " + ex.Message;
                 busy = false;
@@ -241,12 +244,14 @@ namespace Cornetta.App
             try
             {
                 var stats = await Task.Run(() => current.Stop());
+                Telemetry.Send("registrazione", "ok", seconds: stats.Seconds);
                 Diagnostics.Log("Stop: " + Diagnostics.F(stats.Seconds, 2) + " s scritti, "
                     + Diagnostics.F((DateTime.UtcNow - startedAt).TotalSeconds, 2) + " s dall'avvio, riavvii " + current.RestartCount
                     + ", guadagno voce " + Diagnostics.F(current.MicGain, 1));
             }
             catch (Exception ex)
             {
+                Telemetry.Send("registrazione", "errore", TelemetryPayload.ErrorCode(ex, "stop"));
                 Diagnostics.Log("Stop non riuscito: " + ex.Message);
             }
             finally
@@ -268,6 +273,7 @@ namespace Cornetta.App
         private void HandleFailure(Recorder failed, string text)
         {
             if (recorder != failed) return;
+            Telemetry.Send("registrazione", "errore", "interrotta", (DateTime.UtcNow - startedAt).TotalSeconds);
             lastFile = failed.OutputPath;
             Finish();
             message = text;

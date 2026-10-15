@@ -136,6 +136,25 @@ namespace Cornetta.App
             set => Set("ShowOverlay", value ? 1 : 0);
         }
 
+        /// <summary>Telemetria di funzionamento (vedi Telemetry): accesa di default, si spegne dal menu.</summary>
+        public static bool TelemetryEnabled
+        {
+            get => GetBool("TelemetryEnabled", true);
+            set => Set("TelemetryEnabled", value ? 1 : 0);
+        }
+
+        public static string TelemetryInstallId
+        {
+            get => GetString("TelemetryInstallId");
+            set => Set("TelemetryInstallId", value);
+        }
+
+        public static string TelemetryLastVersion
+        {
+            get => GetString("TelemetryLastVersion");
+            set => Set("TelemetryLastVersion", value);
+        }
+
         public static bool ProposeOnCall
         {
             get => GetBool("ProposeOnCall", true);

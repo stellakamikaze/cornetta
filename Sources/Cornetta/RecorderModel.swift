@@ -82,16 +82,19 @@ final class RecorderModel: ObservableObject {
         recorder.onFinalized = { [weak self] result in
             switch result {
             case .success(let saved):
+                Telemetry.send(.registrazione, outcome: "ok", seconds: saved.seconds)
                 self?.lastFile = saved.recording
                 self?.message = "Salvata: \(saved.recording.lastPathComponent)"
                 Library.shared.recordingFinished(saved.recording)
             case .failure(let error):
+                Telemetry.send(.registrazione, outcome: "errore", code: TelemetryFields.errorCode(error, prefix: "salvataggio"))
                 self?.message = "Salvataggio non riuscito: \(error.localizedDescription). L'audio resta al sicuro e viene recuperato al prossimo avvio."
             }
         }
         do {
             try recorder.start(useMicrophone: micAllowed)
         } catch {
+            Telemetry.send(.registrazione, outcome: "errore", code: TelemetryFields.errorCode(error, prefix: "avvio"))
             message = error.localizedDescription
             return
         }
@@ -188,6 +191,7 @@ final class RecorderModel: ObservableObject {
         case .microphoneChanged(let name):
             microphoneName = name
         case .failure(let text):
+            Telemetry.send(.registrazione, outcome: "errore", code: "interrotta", seconds: Date().timeIntervalSince(startedAt ?? Date()))
             finish()
             message = text
             showError(title: "Registrazione interrotta", message: text + " Quello che era già registrato viene salvato.")

@@ -70,6 +70,7 @@ struct MenuContent: View {
         if SpeechEngine.isAvailable {
             Toggle("Trascrivi ogni chiamata sul Mac", isOn: Library.shared.$autoTranscribe)
         }
+        Toggle("Invia dati di funzionamento", isOn: Binding(get: { Telemetry.isEnabled }, set: { Telemetry.isEnabled = $0 }))
         Toggle("Apri all'accensione del Mac", isOn: Binding(get: { LaunchAtLogin.isEnabled }, set: { LaunchAtLogin.set($0) }))
         Button("Controlla aggiornamenti…") { updates.installOrCheck() }
         Divider()
@@ -99,6 +100,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 return
             }
             AppMover.offerMoveIfNeeded()
+            Telemetry.appLaunched()
             _ = RecorderModel.shared
             Library.shared.reload()
             Library.shared.resumePendingTranscriptions()
