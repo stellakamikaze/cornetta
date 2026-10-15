@@ -111,10 +111,10 @@ namespace Cornetta.App
                 "Microfono: " + (microphone ?? devices.Input ?? "nessuno"),
                 "Uscita: " + (devices.Output ?? "nessuna"),
             };
-            if (devices.CommunicationsInput != null && devices.CommunicationsInput != devices.Input)
-                lines.Add("Microfono per le comunicazioni: " + devices.CommunicationsInput);
-            if (devices.CommunicationsOutput != null && devices.CommunicationsOutput != devices.Output)
-                lines.Add("Uscita per le comunicazioni: " + devices.CommunicationsOutput);
+            if (devices.GeneralInput != null && devices.GeneralInput != devices.Input)
+                lines.Add("Ingresso predefinito generale (non usato): " + devices.GeneralInput);
+            if (devices.GeneralOutput != null && devices.GeneralOutput != devices.Output)
+                lines.Add("Uscita predefinita generale (non usata): " + devices.GeneralOutput);
             lines.Add("Permesso microfono: " + (MicrophonePrivacy.IsAllowed() ? "sì" : "no"));
             lines.Add("App che usano il microfono: " + string.Join(", ", CallDetector.CallApps(MicrophoneUsage.Read()).Select(a => a.Name)));
             lines.Add("Registrazioni: " + RecordingsDirectory);

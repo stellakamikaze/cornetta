@@ -98,7 +98,7 @@ Il log sta in `%LOCALAPPDATA%\Cornetta\cornetta.log`.
 
 ### Come funziona
 
-Cornetta legge l'audio di sistema con il loopback WASAPI dell'uscita predefinita e la tua voce con il microfono predefinito. Porta le due sorgenti a 48 kHz stereo e le mette su una linea del tempo comune, decisa da un orologio unico. Il loopback non manda pacchetti quando nessuno suona: Cornetta suona silenzio sull'uscita e riempie di zeri i buchi rimasti, così le due voci restano allineate. Il file è AAC 160 kbit/s con Media Foundation. Su Windows N senza Media Feature Pack Cornetta registra in WAV.
+Cornetta legge l'audio di sistema con il loopback WASAPI e la tua voce dal microfono, usando l'uscita e il microfono che Windows assegna alle comunicazioni: sono quelli di Teams, Zoom, WhatsApp e del browser in chiamata. Se mancano, usa i predefiniti generali. Porta le due sorgenti a 48 kHz stereo e le mette su una linea del tempo comune, decisa da un orologio unico. Il loopback non manda pacchetti quando nessuno suona: Cornetta suona silenzio sull'uscita e riempie di zeri i buchi rimasti, così le due voci restano allineate. Il file è AAC 160 kbit/s con Media Foundation. Su Windows N senza Media Feature Pack Cornetta registra in WAV.
 
 Le chiamate si riconoscono dal registro di Windows (`ConsentStore\microphone`): quando un'app diversa da Cornetta usa il microfono da almeno 4 secondi, compare l'avviso.
 

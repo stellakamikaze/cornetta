@@ -6,15 +6,25 @@ using NAudio.CoreAudioApi;
 
 namespace Cornetta.App
 {
-    /// <summary>Nomi dei dispositivi audio predefiniti, per il pannello e la diagnosi.</summary>
+    /// <summary>Dispositivi audio che Cornetta usa, e i loro nomi per il pannello e la diagnosi.</summary>
     internal static class AudioDevices
     {
+        /// <summary>
+        /// Il ruolo «Comunicazioni» è quello che usano Teams, Zoom, WhatsApp e il browser in chiamata. Può essere
+        /// diverso dal predefinito generale: su un PC con «Stereo Mix» come ingresso predefinito il microfono vero
+        /// sta solo lì, e col predefinito generale Cornetta registrerebbe due volte gli altri e mai te.
+        /// Senza un dispositivo per le comunicazioni si usa il predefinito generale.
+        /// </summary>
+        public const Role CallRole = Role.Communications;
+
         public sealed class Summary
         {
+            /// <summary>Quelli che Cornetta usa (ruolo delle chiamate).</summary>
             public string? Input { get; set; }
             public string? Output { get; set; }
-            public string? CommunicationsInput { get; set; }
-            public string? CommunicationsOutput { get; set; }
+            /// <summary>I predefiniti generali di Windows, per la diagnosi quando sono diversi.</summary>
+            public string? GeneralInput { get; set; }
+            public string? GeneralOutput { get; set; }
             public int ActiveInputs { get; set; }
             public int ActiveOutputs { get; set; }
         }
@@ -26,10 +36,10 @@ namespace Cornetta.App
             {
                 using (var enumerator = new MMDeviceEnumerator())
                 {
-                    summary.Input = Name(enumerator, DataFlow.Capture, Role.Console);
-                    summary.Output = Name(enumerator, DataFlow.Render, Role.Console);
-                    summary.CommunicationsInput = Name(enumerator, DataFlow.Capture, Role.Communications);
-                    summary.CommunicationsOutput = Name(enumerator, DataFlow.Render, Role.Communications);
+                    summary.Input = Name(enumerator, DataFlow.Capture, CallRole) ?? Name(enumerator, DataFlow.Capture, Role.Console);
+                    summary.Output = Name(enumerator, DataFlow.Render, CallRole) ?? Name(enumerator, DataFlow.Render, Role.Console);
+                    summary.GeneralInput = Name(enumerator, DataFlow.Capture, Role.Console);
+                    summary.GeneralOutput = Name(enumerator, DataFlow.Render, Role.Console);
                     summary.ActiveInputs = enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active).Count;
                     summary.ActiveOutputs = enumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active).Count;
                 }
@@ -41,12 +51,16 @@ namespace Cornetta.App
             return summary;
         }
 
+        /// <summary>Il dispositivo delle chiamate, o il predefinito generale se manca.</summary>
         public static MMDevice? Default(MMDeviceEnumerator enumerator, DataFlow flow)
         {
             try
             {
-                if (!enumerator.HasDefaultAudioEndpoint(flow, Role.Console)) return null;
-                return enumerator.GetDefaultAudioEndpoint(flow, Role.Console);
+                foreach (var role in new[] { CallRole, Role.Console })
+                {
+                    if (enumerator.HasDefaultAudioEndpoint(flow, role)) return enumerator.GetDefaultAudioEndpoint(flow, role);
+                }
+                return null;
             }
             catch (Exception ex)
             {

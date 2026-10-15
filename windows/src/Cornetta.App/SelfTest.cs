@@ -74,8 +74,10 @@ namespace Cornetta.App
         private static void CheckDevices()
         {
             var devices = AudioDevices.Describe();
-            Line("Ingressi attivi: " + devices.ActiveInputs + " · predefinito: " + (devices.Input ?? "nessuno"));
-            Line("Uscite attive: " + devices.ActiveOutputs + " · predefinita: " + (devices.Output ?? "nessuna"));
+            Line("Ingressi attivi: " + devices.ActiveInputs + " · per le chiamate: " + (devices.Input ?? "nessuno")
+                + (devices.GeneralInput != null && devices.GeneralInput != devices.Input ? " · predefinito generale: " + devices.GeneralInput : ""));
+            Line("Uscite attive: " + devices.ActiveOutputs + " · per le chiamate: " + (devices.Output ?? "nessuna")
+                + (devices.GeneralOutput != null && devices.GeneralOutput != devices.Output ? " · predefinita generale: " + devices.GeneralOutput : ""));
             Line("Permesso microfono: " + (MicrophonePrivacy.IsAllowed() ? "sì" : "no"));
             Line("App che usano il microfono: " + string.Join(", ", CallDetector.CallApps(MicrophoneUsage.Read()).Select(a => a.Name)));
             if (devices.Input == null && devices.Output == null)

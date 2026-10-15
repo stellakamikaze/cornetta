@@ -353,7 +353,7 @@ namespace Cornetta.App
 
         private bool HasDefault(DataFlow flow)
         {
-            try { return enumerator!.HasDefaultAudioEndpoint(flow, Role.Console); }
+            try { return enumerator!.HasDefaultAudioEndpoint(flow, AudioDevices.CallRole) || enumerator.HasDefaultAudioEndpoint(flow, Role.Console); }
             catch (Exception) { return false; }
         }
 
@@ -485,7 +485,8 @@ namespace Cornetta.App
 
         public void OnDefaultDeviceChanged(DataFlow flow, Role role, string defaultDeviceId)
         {
-            if (role != Role.Console) return;
+            // Cornetta segue il dispositivo delle chiamate: un cambio del solo predefinito generale non la tocca.
+            if (role != AudioDevices.CallRole) return;
             ThreadPool.QueueUserWorkItem(_ =>
             {
                 try { onDefaultChanged(flow); }
