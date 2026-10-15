@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
+using System.Threading.Tasks;
 using Cornetta.Core;
 using Microsoft.Win32;
 using NAudio.CoreAudioApi;
@@ -137,12 +139,68 @@ namespace Cornetta.App
         }
     }
 
-    /// <summary>Legge dal registro quali app usano il microfono (vedi CallDetector).</summary>
+    /// <summary>
+    /// Quali app usano il microfono (vedi CallDetector): il registro più le sessioni audio attive.
+    /// Su Windows 24H2 il registro può restare fermo: le sessioni audio bastano da sole.
+    /// </summary>
     internal static class MicrophoneUsage
     {
         private const string Path = @"Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone";
 
         public static List<MicrophoneUse> Read()
+        {
+            var uses = ReadRegistry();
+            // Le interfacce audio di Windows vanno usate su un thread MTA, non su quello dell'interfaccia.
+            try { uses.AddRange(Task.Run(() => ReadSessions()).GetAwaiter().GetResult()); }
+            catch (Exception ex) { Diagnostics.Log("Sessioni audio non leggibili: " + ex.Message); }
+            return uses;
+        }
+
+        /// <summary>I processi con una sessione audio attiva su un microfono qualsiasi, Cornetta esclusa.</summary>
+        private static List<MicrophoneUse> ReadSessions()
+        {
+            var uses = new List<MicrophoneUse>();
+            int own = System.Diagnostics.Process.GetCurrentProcess().Id;
+            using (var enumerator = new MMDeviceEnumerator())
+            {
+                foreach (var device in enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active))
+                {
+                    using (device)
+                    {
+                        var sessions = device.AudioSessionManager.Sessions;
+                        for (int i = 0; i < sessions.Count; i++)
+                        {
+                            using (var session = sessions[i])
+                            {
+                                if (session.State != NAudio.CoreAudioApi.Interfaces.AudioSessionState.AudioSessionStateActive) continue;
+                                if (session.IsSystemSoundsSession) continue;
+                                int pid = (int)session.GetProcessID;
+                                if (pid == 0 || pid == own) continue;
+                                string? path = ExecutablePath(pid);
+                                if (path != null) uses.Add(MicrophoneUse.FromProcess(path));
+                            }
+                        }
+                    }
+                }
+            }
+            return uses;
+        }
+
+        /// <summary>Percorso dell'eseguibile di un processo, anche a 32 bit o elevato. Null se non leggibile.</summary>
+        private static string? ExecutablePath(int pid)
+        {
+            IntPtr handle = NativeMethods.OpenProcess(NativeMethods.PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+            if (handle == IntPtr.Zero) return null;
+            try
+            {
+                var name = new StringBuilder(1024);
+                int size = name.Capacity;
+                return NativeMethods.QueryFullProcessImageName(handle, 0, name, ref size) ? name.ToString() : null;
+            }
+            finally { NativeMethods.CloseHandle(handle); }
+        }
+
+        private static List<MicrophoneUse> ReadRegistry()
         {
             var uses = new List<MicrophoneUse>();
             try

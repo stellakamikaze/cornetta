@@ -62,6 +62,39 @@ namespace Cornetta.Core.Tests
             Assert.False(new MicrophoneUse("x", true, Now.ToFileTimeUtc(), Now.AddSeconds(5).ToFileTimeUtc()).InUse);
             Assert.False(new MicrophoneUse("x", true, 0, 0).InUse);
         }
+
+        [Fact]
+        public void AudioSessionsAreNamedLikeTheRegistry()
+        {
+            // Windows 24H2 con il registro fermo: le app si riconoscono dal percorso del processo.
+            var uses = new List<MicrophoneUse>
+            {
+                MicrophoneUse.FromProcess(@"C:\Program Files\WindowsApps\5319275A.WhatsAppDesktop_2.2442.6.0_x64__cv1g1gvanyjgm\WhatsApp.exe"),
+                MicrophoneUse.FromProcess(@"C:\Program Files\WindowsApps\MSTeams_25153.1010.3727.5483_x64__8wekyb3d8bbwe\ms-teams.exe"),
+                MicrophoneUse.FromProcess(@"C:\Program Files\WindowsApps\Microsoft.WindowsSoundRecorder_11.2508.4.0_x64__8wekyb3d8bbwe\VoiceRecorder.exe"),
+                MicrophoneUse.FromProcess(@"C:\Users\feder\AppData\Local\Cornetta\current\Cornetta.exe"),
+                MicrophoneUse.FromProcess(@"C:\Users\feder\AppData\Local\Discord\app-1.0.9219\Discord.exe"),
+                MicrophoneUse.FromProcess(@"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"),
+            };
+            Assert.All(uses, u => Assert.True(u.InUse));
+            Assert.All(uses, u => Assert.Null(u.Since));
+            var apps = CallDetector.CallApps(uses);
+            Assert.Equal(new[] { "WhatsApp", "Teams", "Discord", "Powershell" }, apps.Select(a => a.Name).ToArray());
+        }
+
+        [Fact]
+        public void RegistryAndSessionOfTheSameAppAreOneCall()
+        {
+            var uses = new List<MicrophoneUse>
+            {
+                InUse(@"C:#Program Files#Google#Chrome#Application#chrome.exe", false, Now.AddSeconds(-20)),
+                MicrophoneUse.FromProcess(@"C:\Program Files\Google\Chrome\Application\chrome.exe"),
+            };
+            var apps = CallDetector.CallApps(uses);
+            Assert.Single(apps);
+            // Il registro sa da quando: vale il suo orario.
+            Assert.Equal(Now.AddSeconds(-20), apps[0].Since);
+        }
     }
 
     public class CallMonitorTests
@@ -80,6 +113,15 @@ namespace Cornetta.Core.Tests
             Assert.Equal("Teams", monitor.Poll(T0.AddSeconds(4), Apps("Teams"), false, true, false, false).PromptApp);
             // Una volta sola per chiamata.
             Assert.Null(monitor.Poll(T0.AddSeconds(6), Apps("Teams"), false, true, false, false).PromptApp);
+        }
+
+        [Fact]
+        public void AudioSessionWithoutStartTimePromptsAfterFourSecondsSeen()
+        {
+            var monitor = new CallMonitor();
+            var apps = CallDetector.CallApps(new[] { MicrophoneUse.FromProcess(@"C:\Apps\Zoom\bin\Zoom.exe") });
+            Assert.Null(monitor.Poll(T0, apps, false, true, false, false).PromptApp);
+            Assert.Equal("Zoom", monitor.Poll(T0.AddSeconds(4), apps, false, true, false, false).PromptApp);
         }
 
         [Fact]

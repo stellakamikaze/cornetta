@@ -52,5 +52,16 @@ namespace Cornetta.App
 
         [DllImport("kernel32.dll")]
         public static extern bool AttachConsole(int processId);
+
+        public const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern IntPtr OpenProcess(uint access, bool inheritHandle, int processId);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        public static extern bool QueryFullProcessImageName(IntPtr process, int flags, System.Text.StringBuilder name, ref int size);
+
+        [DllImport("kernel32.dll")]
+        public static extern bool CloseHandle(IntPtr handle);
     }
 }

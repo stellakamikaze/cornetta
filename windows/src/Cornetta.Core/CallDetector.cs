@@ -5,10 +5,12 @@ using System.Linq;
 namespace Cornetta.Core
 {
     /// <summary>
-    /// Una voce del registro di Windows sull'uso del microfono:
-    /// HKCU\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone.
-    /// Le app packaged hanno la sottochiave col nome del pacchetto, le altre stanno sotto NonPackaged
-    /// col percorso dell'eseguibile (le barre diventano #).
+    /// Un'app che usa il microfono. Due fonti:
+    /// - il registro di Windows, HKCU\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone.
+    ///   Le app packaged hanno la sottochiave col nome del pacchetto, le altre stanno sotto NonPackaged
+    ///   col percorso dell'eseguibile (le barre diventano #). Su Windows 24H2 il registro può restare fermo:
+    ///   Windows annota l'uso in un database che solo il sistema legge.
+    /// - le sessioni audio attive sui microfoni (FromProcess), che non dicono da quando.
     /// </summary>
     public sealed class MicrophoneUse
     {
@@ -20,6 +22,33 @@ namespace Cornetta.Core
             LastUsedTimeStop = lastUsedTimeStop;
         }
 
+        private MicrophoneUse(string key, bool packaged)
+        {
+            Key = key;
+            Packaged = packaged;
+            live = true;
+        }
+
+        private readonly bool live;
+
+        /// <summary>
+        /// Un processo con una sessione audio attiva su un microfono, dal percorso dell'eseguibile.
+        /// Un'app packaged sta in «…\WindowsApps\<pacchetto>\…»: la chiave diventa il pacchetto, come nel registro.
+        /// </summary>
+        public static MicrophoneUse FromProcess(string executablePath)
+        {
+            const string store = "\\WindowsApps\\";
+            int index = executablePath.IndexOf(store, StringComparison.OrdinalIgnoreCase);
+            if (index >= 0)
+            {
+                string rest = executablePath.Substring(index + store.Length);
+                int slash = rest.IndexOf('\\');
+                string package = slash > 0 ? rest.Substring(0, slash) : rest;
+                if (package.Length > 0) return new MicrophoneUse(package, true);
+            }
+            return new MicrophoneUse(executablePath, false);
+        }
+
         public string Key { get; }
         public bool Packaged { get; }
         /// <summary>FILETIME UTC dell'ultimo avvio dell'uso.</summary>
@@ -27,7 +56,7 @@ namespace Cornetta.Core
         /// <summary>FILETIME UTC dell'ultimo stop. Zero vuol dire «in uso adesso».</summary>
         public long LastUsedTimeStop { get; }
 
-        public bool InUse => LastUsedTimeStop == 0 && LastUsedTimeStart > 0;
+        public bool InUse => live || (LastUsedTimeStop == 0 && LastUsedTimeStart > 0);
 
         /// <summary>Da quando l'app usa il microfono, se Windows lo sa.</summary>
         public DateTime? Since
