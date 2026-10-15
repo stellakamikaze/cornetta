@@ -3,6 +3,26 @@
     <channel>
         <title>Cornetta</title>
         <item>
+            <title>0.3.3</title>
+            <pubDate>Thu, 15 Oct 2026 12:53:34 +0200</pubDate>
+            <sparkle:version>0.3.3</sparkle:version>
+            <sparkle:shortVersionString>0.3.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.4</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>Cornetta 0.3.3</h2><ul>
+<li>Se il microfono o le cuffie si staccano durante una chiamata, la registrazione finisce comunque in Registrazioni e viene trascritta</li>
+<li>Lo spostamento in Applicazioni sostituisce la copia vecchia in un colpo solo, senza lasciare l'app a metà</li>
+</ul>
+]]></description>
+            <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta-0.3.3.dmg" length="2299979" type="application/octet-stream" sparkle:edSignature="Dj5UXID5IKLTiT69lePKyExmJsnReBzij0TZgJFaDBEEeCsQ1pAGtHMBHxJSlpkmD/+g+T6Ku/BOP69rH+RYAQ=="/>
+            <sparkle:deltas>
+                <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta0.3.3-0.3.2.delta" sparkle:deltaFrom="0.3.2" length="138410" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="976336" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="pk6/6XZ49pKLfFZN42PKlYafAno9VERzCpSguhVktA0fgJ5fANp5wbLeKAH+/Fsz3VXUvOYTDqdvZ+9w7BH7DQ=="/>
+                <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta0.3.3-0.3.1.delta" sparkle:deltaFrom="0.3.1" length="170518" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="976336" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="T4mSCicXVhtyOrG30lc/Qxvm6buhj76AtNlQxCp8WOh1qmfwUSikpDCGyC5qoVW+RR9mQIc9dNELr53ADPaLBw=="/>
+                <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta0.3.3-0.3.0.delta" sparkle:deltaFrom="0.3.0" length="890250" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862320" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="KdGEI7ssj7axD4kXWEz+g2Y8w3WJOg+B4DZDD9+mHc63T/pWvzH7psNSH6wrfFPB2IItz4hPPA8MNRPgXcQiCA=="/>
+                <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta0.3.3-0.2.1.delta" sparkle:deltaFrom="0.2.1" length="1079934" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862320" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="X/JXLVqZYAVe7xwcn2rs8jKo12d9m6d7cAkpwHN/ISkLEjRjp/PyYAdtDy84xcoWyczzHWZDMIdsezv7LrjZAg=="/>
+                <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta0.3.3-0.2.0.delta" sparkle:deltaFrom="0.2.0" length="1089486" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862320" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="ufAxZ7oS5WG8xJHVZkd2XUU6XdTGiOA6MLgjWjEi0pcES6cjcZ+XQtRmY3MdG89p4yRaA+wKmgfZOjmtG50SCQ=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>0.3.2</title>
             <pubDate>Wed, 14 Oct 2026 14:39:51 +0200</pubDate>
             <sparkle:version>0.3.2</sparkle:version>
@@ -38,24 +58,6 @@
                 <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta0.3.1-0.3.0.delta" sparkle:deltaFrom="0.3.0" length="880538" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862320" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="YWnFUC6mfp/eYLiW3Xg2kRNWZt0kG9Ig1dg3Yz7oYJq1YtrH8qaem64n1nVAWc6mR2XOemAZy0dTn7qsVcvODQ=="/>
                 <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta0.3.1-0.2.1.delta" sparkle:deltaFrom="0.2.1" length="1076118" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862320" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="lM3LcZN/dtNkazDuIdjXK4xChjt4NNj/b3MRseOyd71urHrldkWeNAWOjr7xoIg6/DAxfsYaQSfQjSgtE3DzCQ=="/>
                 <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta0.3.1-0.2.0.delta" sparkle:deltaFrom="0.2.0" length="1081502" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862320" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="FlX8vd2tI6DLKvhmz5qxdh6ks69Y7WZIUYSEVG4gS7jsW+HxlYpH5Zk58hDPqc458iNqhF6NLYvDUpQXOR02AQ=="/>
-            </sparkle:deltas>
-        </item>
-        <item>
-            <title>0.3.0</title>
-            <pubDate>Wed, 14 Oct 2026 12:33:40 +0200</pubDate>
-            <sparkle:version>0.3.0</sparkle:version>
-            <sparkle:shortVersionString>0.3.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.4</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>Cornetta 0.3.0</h2><ul>
-<li>Trascrizione sul Mac: a fine chiamata Cornetta scrive il testo, con la tua voce e quella degli altri separate.</li>
-<li>Nuova finestra Registrazioni (⌘T): cerca nelle chiamate, leggi la trascrizione e ascolta dal punto che ti serve.</li>
-<li>La trascrizione si salva anche come file accanto all'audio. Niente esce dal Mac.</li>
-</ul>
-]]></description>
-            <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta-0.3.0.dmg" length="2099469" type="application/octet-stream" sparkle:edSignature="cDflDF9okLDQVvXX6DiHmJ1MpJuzKkmRuaDBgwXRlzVmY/qjrtyHKul/Avh9anwpjXb9WkBv6azZ4cZHo1LoAw=="/>
-            <sparkle:deltas>
-                <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta0.3.0-0.2.1.delta" sparkle:deltaFrom="0.2.1" length="414442" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862320" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="Ec6MByQDT4KF6mrJ8Q+i91DyvqKTQD4cN+uNEKkbQIqihnPhvP6TR6L3ScVk9duYwIXU6l95oRHlhPnfT98yAw=="/>
-                <enclosure url="https://cornetta.stellakamikaze.org/downloads/Cornetta0.3.0-0.2.0.delta" sparkle:deltaFrom="0.2.0" length="423526" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="862320" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,en" sparkle:edSignature="LNunrIEXiMP+CW7ZZt1wFkN9YrRukyNDip8BomqlzAMG1DBKP1nhhG+oabKnIaBP9aa6QwyZUiBDzAeIAoqEDg=="/>
             </sparkle:deltas>
         </item>
     </channel>
