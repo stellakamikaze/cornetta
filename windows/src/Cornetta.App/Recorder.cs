@@ -11,7 +11,7 @@ namespace Cornetta.App
     /// <summary>
     /// Registra in un file la voce dal microfono e l'audio di sistema (la voce degli altri in chiamata).
     ///
-    /// Due catture WASAPI indipendenti (microfono e loopback dell'uscita predefinita) scrivono sulla
+    /// Due catture WASAPI indipendenti (microfono e loopback dell'uscita, quelli che Windows assegna alle chiamate) scrivono sulla
     /// stessa linea del tempo, decisa da un orologio unico (CaptureTimeline). Un thread mixer legge
     /// la linea del tempo con 350 ms di ritardo, livella la voce, mixa e scrive il file.
     /// Per tenere vivo il loopback quando nessuno parla, Cornetta suona silenzio sull'uscita.
@@ -351,12 +351,6 @@ namespace Cornetta.App
             if (micChanged) MicrophoneChanged?.Invoke(name);
         }
 
-        private bool HasDefault(DataFlow flow)
-        {
-            try { return enumerator!.HasDefaultAudioEndpoint(flow, AudioDevices.CallRole) || enumerator.HasDefaultAudioEndpoint(flow, Role.Console); }
-            catch (Exception) { return false; }
-        }
-
         // MARK: - Watchdog
         // Se l'audio smette di arrivare (dispositivo sparito senza notifica), ricrea la cattura.
 
@@ -372,12 +366,12 @@ namespace Cornetta.App
             bool restart = false;
             lock (control)
             {
-                // Una sorgente persa (dispositivo non pronto al riavvio) si riprova ogni 10 s, se Windows ha un dispositivo predefinito.
+                // Una sorgente persa (dispositivo non pronto al riavvio) si riprova ogni 10 s, se Windows ha un dispositivo da usare.
                 watchdogTicks++;
                 if (watchdogTicks % 5 == 0 && enumerator != null)
                 {
-                    if (useMicrophone && mic == null && HasDefault(DataFlow.Capture)) { pendingMicRestart = true; restart = true; }
-                    if (system == null && HasDefault(DataFlow.Render)) { pendingSystemRestart = true; restart = true; }
+                    if (useMicrophone && mic == null && AudioDevices.Exists(enumerator, DataFlow.Capture)) { pendingMicRestart = true; restart = true; }
+                    if (system == null && AudioDevices.Exists(enumerator, DataFlow.Render)) { pendingSystemRestart = true; restart = true; }
                 }
                 if (mic != null && mic.SecondsSinceLastData > 3)
                 {
@@ -476,7 +470,7 @@ namespace Cornetta.App
         }
     }
 
-    /// <summary>Notifiche di Windows sul cambio del dispositivo predefinito.</summary>
+    /// <summary>Notifiche di Windows sul cambio del dispositivo delle chiamate.</summary>
     internal sealed class DeviceWatcher : IMMNotificationClient
     {
         private readonly Action<DataFlow> onDefaultChanged;

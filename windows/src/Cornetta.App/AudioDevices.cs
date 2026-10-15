@@ -17,6 +17,9 @@ namespace Cornetta.App
         /// </summary>
         public const Role CallRole = Role.Communications;
 
+        /// <summary>I ruoli in ordine di preferenza: prima quello delle chiamate, poi il predefinito generale.</summary>
+        private static readonly Role[] Roles = { CallRole, Role.Console };
+
         public sealed class Summary
         {
             /// <summary>Quelli che Cornetta usa (ruolo delle chiamate).</summary>
@@ -36,8 +39,8 @@ namespace Cornetta.App
             {
                 using (var enumerator = new MMDeviceEnumerator())
                 {
-                    summary.Input = Name(enumerator, DataFlow.Capture, CallRole) ?? Name(enumerator, DataFlow.Capture, Role.Console);
-                    summary.Output = Name(enumerator, DataFlow.Render, CallRole) ?? Name(enumerator, DataFlow.Render, Role.Console);
+                    summary.Input = Name(enumerator, DataFlow.Capture);
+                    summary.Output = Name(enumerator, DataFlow.Render);
                     summary.GeneralInput = Name(enumerator, DataFlow.Capture, Role.Console);
                     summary.GeneralOutput = Name(enumerator, DataFlow.Render, Role.Console);
                     summary.ActiveInputs = enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active).Count;
@@ -56,7 +59,7 @@ namespace Cornetta.App
         {
             try
             {
-                foreach (var role in new[] { CallRole, Role.Console })
+                foreach (var role in Roles)
                 {
                     if (enumerator.HasDefaultAudioEndpoint(flow, role)) return enumerator.GetDefaultAudioEndpoint(flow, role);
                 }
@@ -67,6 +70,31 @@ namespace Cornetta.App
                 Diagnostics.Log("Dispositivo predefinito non disponibile (" + flow + "): " + ex.Message);
                 return null;
             }
+        }
+
+        /// <summary>Vero se Windows ha un dispositivo per le chiamate o un predefinito generale.</summary>
+        public static bool Exists(MMDeviceEnumerator enumerator, DataFlow flow)
+        {
+            try
+            {
+                foreach (var role in Roles)
+                {
+                    if (enumerator.HasDefaultAudioEndpoint(flow, role)) return true;
+                }
+                return false;
+            }
+            catch (Exception) { return false; }
+        }
+
+        /// <summary>Il nome del dispositivo che Default sceglierebbe.</summary>
+        private static string? Name(MMDeviceEnumerator enumerator, DataFlow flow)
+        {
+            foreach (var role in Roles)
+            {
+                string? name = Name(enumerator, flow, role);
+                if (name != null) return name;
+            }
+            return null;
         }
 
         private static string? Name(MMDeviceEnumerator enumerator, DataFlow flow, Role role)

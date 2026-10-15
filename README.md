@@ -119,7 +119,7 @@ Cornetta.exe --selftest                          :: dispositivi, encoder AAC, fi
 Cornetta.exe --record 10 --out C:\prova.m4a      :: 10 secondi di cattura vera, statistiche in C:\prova.m4a.json
 ```
 
-Il CI (`.github/workflows/windows.yml`) compila, esegue i test con .NET 10 e .NET Framework 4.8, lancia `--selftest`, impacchetta con Velopack e prova l'installer.
+Il CI (`.github/workflows/windows.yml`) compila, esegue i test con .NET 10 e .NET Framework 4.8 e lancia `--selftest`. Poi controlla che il selftest sappia fallire (`--selftest-poison`, deve uscire con 1 e dire perché), disegna i pannelli (`--render-ui`) e avvia l'app vera (`--smoke-tray`): selftest e pannelli non passano dal costruttore dell'app, e un crash all'avvio arriverebbe agli utenti. Infine impacchetta con Velopack e prova l'installer. Le build di prova (versione 0.0.<run>) non scaricano il feed pubblicato, perché Velopack rifiuta una versione più bassa.
 
 ### Pubblicare una versione Windows
 
@@ -134,7 +134,7 @@ Le app installate vedono la versione nuova all'avvio e ogni 4 ore.
 ### Limiti noti su Windows
 
 - L'installer non è firmato: SmartScreen chiede «Ulteriori informazioni → Esegui comunque».
-- Cornetta registra l'uscita audio predefinita. Se l'app di chiamata usa un altro dispositivo (per esempio le cuffie impostate solo come «dispositivo di comunicazione»), la voce degli altri non entra nel file.
+- Cornetta registra il microfono e l'uscita che Windows assegna alle comunicazioni. Se l'app di chiamata è impostata a mano su un altro dispositivo, quel dispositivo non entra nel file.
 - `wrangler deploy` pubblica tutta `worker/public`: deploya solo da una macchina che ha anche `worker/public/windows/`.
 
 ## Notarizzazione Apple (installazione senza «Apri comunque»)

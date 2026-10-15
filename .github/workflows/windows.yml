@@ -1,5 +1,5 @@
 # Cornetta per Windows: compila, prova, impacchetta con Velopack.
-# - push su un ramo che tocca windows/: build, test, selftest, pacchetto di prova (versione 0.0.<run>)
+# - push su un ramo che tocca windows/: build, test, selftest (anche col veleno), pannelli, avvio dell'app, pacchetto di prova (versione 0.0.<run>)
 # - tag win-v0.3.0: stessa cosa con la versione 0.3.0, pronta da pubblicare
 # - avvio a mano (workflow_dispatch) con la versione scelta
 # Gli artifact contengono CornettaSetup.exe e i file del feed (releases.win.json, *.nupkg)
