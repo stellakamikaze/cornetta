@@ -109,6 +109,14 @@ jobs:
           Get-ChildItem $dir | Format-Table Name, Length
           exit $p.ExitCode
 
+      - name: L'app si avvia (--smoke-tray)
+        run: |
+          $p = Start-Process -FilePath (Resolve-Path publish/Cornetta.exe) -ArgumentList "--smoke-tray" -Wait -PassThru -NoNewWindow `
+                 -RedirectStandardOutput smoke-stdout.txt -RedirectStandardError smoke-stderr.txt
+          Get-Content smoke-stdout.txt, smoke-stderr.txt
+          Write-Host "Codice di uscita: $($p.ExitCode)"
+          exit $p.ExitCode
+
       - name: Installa vpk
         run: dotnet tool install -g vpk --version $env:VPK_VERSION
 
