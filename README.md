@@ -44,6 +44,8 @@ Cornetta usa i *process tap* di Core Audio (macOS 14.2+): legge tutto l'audio ch
 
 Il file è AAC stereo a 48 kHz. La tua voce sta al centro, l'audio della chiamata mantiene il suo stereo. Un limitatore evita la distorsione quando parlate insieme.
 
+Durante la chiamata Cornetta non scrive ancora l'AAC: scrive file CAF in `~/Library/Application Support/Cornetta/In corso/`, che restano leggibili anche se il Mac si spegne o l'app si chiude di colpo. Allo stop li converte nel `.m4a` in `~/Music/Cornetta/` e svuota la cartella. Se all'avvio trova una cartella rimasta lì, recupera la registrazione interrotta e la mette in libreria. Lo stesso vale quando la registrazione si ferma per un errore del dispositivo audio: quello che era già registrato si salva e si trascrive.
+
 ## Compilare da sorgente
 
 Bastano i Command Line Tools di Xcode (`xcode-select --install`).

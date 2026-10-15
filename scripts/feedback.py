@@ -10,6 +10,7 @@
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -18,6 +19,15 @@ import time
 NAMESPACE = "0071efedaeb74429b6cc2325753f653f"
 REPO = "stellakamikaze/cornetta"
 WORKER_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "worker")
+
+
+def keep_seconds():
+    """Quanto restano i feedback in KV: lo decide il Worker (KEEP_SECONDS), qui si legge da lì."""
+    with open(os.path.join(WORKER_DIR, "src", "index.js"), encoding="utf-8") as f:
+        match = re.search(r"const KEEP_SECONDS = (\d+) \* 24 \* 3600;", f.read())
+    if not match:
+        sys.exit("KEEP_SECONDS non trovato in worker/src/index.js: aggiorna keep_seconds() in feedback.py")
+    return int(match.group(1)) * 24 * 3600
 
 
 def wrangler(*args, capture=True):
@@ -64,9 +74,9 @@ def set_status(item, record, status):
         json.dump(record, f)
         path = f.name
     try:
-        # La scadenza a 90 giorni dalla ricezione resta anche dopo il cambio di stato.
+        # La scadenza dalla ricezione resta anche dopo il cambio di stato.
         received = time.mktime(time.strptime(record["receivedAt"][:19], "%Y-%m-%dT%H:%M:%S")) - time.timezone
-        ttl = max(60, int(received + 90 * 24 * 3600 - time.time()))
+        ttl = max(60, int(received + keep_seconds() - time.time()))
         wrangler("key", "put", item["name"], "--path", path, "--metadata", json.dumps(metadata), "--ttl", str(ttl))
     finally:
         os.unlink(path)
@@ -110,10 +120,12 @@ def main():
             print("\n--- diagnostica ---")
             print(safe(record["diagnostics"]))
     elif command == "issue":
-        title = "Feedback: " + record["message"].splitlines()[0][:80]
-        body = (f"{record['message']}\n\n---\nRicevuto {record['receivedAt']} · app {record.get('app', {})}\n"
-                f"Da: {record.get('name') or '-'} {record.get('email') or ''}\nID: `{record['id']}`\n\n"
-                f"<details><summary>Diagnostica</summary>\n\n```\n{record.get('diagnostics', '')}\n```\n</details>")
+        # Anche verso GitHub passa solo testo pulito: niente caratteri di controllo né inversioni di direzione.
+        message = safe(record["message"])
+        title = "Feedback: " + (message.splitlines() or [""])[0][:80]
+        body = (f"{message}\n\n---\nRicevuto {safe(record['receivedAt'])} · app {safe(record.get('app', {}))}\n"
+                f"Da: {safe(record.get('name') or '-')} {safe(record.get('email') or '')}\nID: `{safe(record['id'])}`\n\n"
+                f"<details><summary>Diagnostica</summary>\n\n```\n{safe(record.get('diagnostics', ''))}\n```\n</details>")
         subprocess.run(["gh", "label", "create", "feedback", "-R", REPO, "--color", "E4572E", "--force"],
                        capture_output=True)
         url = subprocess.run(["gh", "issue", "create", "-R", REPO, "--title", title, "--body-file", "-",

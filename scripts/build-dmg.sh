@@ -16,6 +16,10 @@ APP="build/Cornetta.app"
 if [ -z "${SIGN_IDENTITY:-}" ]; then
   if security find-identity -p codesigning | grep -q "Cornetta Self-Signed"; then SIGN_IDENTITY="Cornetta Self-Signed"; else SIGN_IDENTITY="-"; fi
 fi
+if [ "$SIGN_IDENTITY" = "-" ]; then
+  echo "⚠ Firma ad-hoc: manca «Cornetta Self-Signed» nel portachiavi. Va bene per provare, non per distribuire:"
+  echo "  a ogni versione macOS richiede di nuovo microfono e audio di sistema. release.sh si ferma."
+fi
 
 echo "→ Compilo (release, arm64 + x86_64)"
 for arch in arm64 x86_64; do

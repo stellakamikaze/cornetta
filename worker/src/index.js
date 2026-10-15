@@ -3,7 +3,7 @@
 
 const MAX_BODY = 100_000;
 const MAX_PER_HOUR = 20;
-const KEEP_SECONDS = 90 * 24 * 3600;   // i feedback si cancellano da soli dopo 90 giorni
+const KEEP_SECONDS = 90 * 24 * 3600;   // i feedback si cancellano da soli dopo 90 giorni (scripts/feedback.py legge questa riga)
 
 export default {
   async fetch(request, env) {
