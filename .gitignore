@@ -8,3 +8,4 @@ build/
 .claude/
 .impeccable/decision/
 .impeccable/questions/
+__pycache__/
