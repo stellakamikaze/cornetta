@@ -48,6 +48,8 @@ namespace Cornetta.App
         public TrayApp(bool firstRun)
         {
             invoker.CreateControl();
+            // Prima del menu: BuildMenu legge hotkey.Registered.
+            hotkey = new GlobalHotkey(Toggle);
             tray = new NotifyIcon { Icon = TrayIcons.Idle, Text = "Cornetta", ContextMenuStrip = menu, Visible = true };
             tray.MouseUp += (_, e) => { if (e.Button == MouseButtons.Left) ShowMenu(); };
             tray.BalloonTipClicked += (_, __) => RevealLastFile();
@@ -59,7 +61,6 @@ namespace Cornetta.App
             callTimer.Start();
             updateTimer.Tick += async (_, __) => await CheckUpdates(manual: false);
             updateTimer.Start();
-            hotkey = new GlobalHotkey(Toggle);
             // Spegnimento, disconnessione e sospensione: il file va chiuso prima, o resta illeggibile.
             SystemEvents.SessionEnding += OnSessionEnding;
             SystemEvents.PowerModeChanged += OnPowerModeChanged;
