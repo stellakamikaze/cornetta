@@ -19,8 +19,8 @@ enum HeadlessTranscription {
                 let segments: [Transcript.Segment]
                 if let tracks {
                     let dir = URL(fileURLWithPath: tracks, isDirectory: true)
-                    let theirs = try await SpeechEngine.transcribe(dir.appendingPathComponent("altri.m4a"), speaker: .others, locale: locale) { _ in }
-                    let mine = try await SpeechEngine.transcribe(dir.appendingPathComponent("tu.m4a"), speaker: .me, locale: locale) { _ in }
+                    let theirs = try await SpeechEngine.transcribe(dir.appendingPathComponent(RecordingFinalizer.othersTrack), speaker: .others, locale: locale) { _ in }
+                    let mine = try await SpeechEngine.transcribe(dir.appendingPathComponent(RecordingFinalizer.meTrack), speaker: .me, locale: locale) { _ in }
                     print("frasi Tu: \(mine.count), frasi Altri: \(theirs.count)")
                     segments = TranscriptMerger.merge(me: mine, others: theirs)
                 } else {

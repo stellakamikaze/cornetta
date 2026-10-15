@@ -18,14 +18,7 @@ public enum FileNaming {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd HH.mm"
-        let base = "Chiamata \(formatter.string(from: date))"
-        var candidate = directory.appendingPathComponent("\(base).m4a")
-        var counter = 2
-        while fileExists(candidate) {
-            candidate = directory.appendingPathComponent("\(base) (\(counter)).m4a")
-            counter += 1
-        }
-        return candidate
+        return uniqueURL(in: directory, baseName: "Chiamata \(formatter.string(from: date))", fileExists: fileExists)
     }
 
     /// «<base>.m4a» nella cartella, con « (2)», « (3)» se il nome è già preso.

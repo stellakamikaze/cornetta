@@ -77,6 +77,18 @@ final class RecorderModel: ObservableObject {
         recorder.onEvent = { [weak self] event in
             Task { @MainActor in self?.handle(event) }
         }
+        // Si imposta all'avvio: anche uno stop per errore del dispositivo converte il file e deve
+        // farlo entrare in libreria (e quindi in trascrizione), non solo lo stop dal menu.
+        recorder.onFinalized = { [weak self] result in
+            switch result {
+            case .success(let saved):
+                self?.lastFile = saved.recording
+                self?.message = "Salvata: \(saved.recording.lastPathComponent)"
+                Library.shared.recordingFinished(saved.recording)
+            case .failure(let error):
+                self?.message = "Salvataggio non riuscito: \(error.localizedDescription). L'audio resta al sicuro e viene recuperato al prossimo avvio."
+            }
+        }
         do {
             try recorder.start(useMicrophone: micAllowed)
         } catch {
@@ -106,16 +118,6 @@ final class RecorderModel: ObservableObject {
 
     func stop() {
         guard let recorder else { return }
-        recorder.onFinalized = { [weak self] result in
-            switch result {
-            case .success(let saved):
-                self?.lastFile = saved.recording
-                self?.message = "Salvata: \(saved.recording.lastPathComponent)"
-                Library.shared.recordingFinished(saved.recording)
-            case .failure(let error):
-                self?.message = "Salvataggio non riuscito: \(error.localizedDescription). L'audio resta al sicuro e viene recuperato al prossimo avvio."
-            }
-        }
         let stats = recorder.stop()
         Diagnostics.log(String(format: "Stop: %.2f s scritti, %.2f s dall'avvio, riavvii %d, guadagno voce %.1f",
                                stats.seconds, Date().timeIntervalSince(startedAt ?? Date()), recorder.restartCount,

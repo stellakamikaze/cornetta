@@ -1,6 +1,7 @@
 import AVFoundation
 
-/// Scrive il mix finale in AAC a 48 kHz e, se richiesto, le tracce separate in WAV.
+/// Scrive il mix a 48 kHz e, se richiesto, le tracce vocali separate, tutto in CAF PCM nella cartella di lavoro:
+/// li converte in .m4a `RecordingFinalizer` allo stop. Con `debugDirectory` scrive anche mic e sistema grezzi in WAV.
 /// Va usato da una sola coda.
 final class TrackWriter {
     static let fileSampleRate: Double = 48_000

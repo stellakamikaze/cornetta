@@ -107,7 +107,7 @@ final class Library: ObservableObject {
                 let date = FileNaming.date(fromFileName: url.lastPathComponent)
                     ?? (try? url.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
                 let duration = (try? AVAudioFile(forReading: url)).map { Double($0.length) / $0.fileFormat.sampleRate } ?? 0
-                let tracks = FileManager.default.fileExists(atPath: tracksDirectory(for: url).appendingPathComponent("altri.m4a").path)
+                let tracks = FileManager.default.fileExists(atPath: tracksDirectory(for: url).appendingPathComponent(RecordingFinalizer.othersTrack).path)
                 return Recording(url: url, date: date, duration: duration, hasTracks: tracks)
             }
             .sorted { $0.date > $1.date }
@@ -164,7 +164,7 @@ final class Library: ObservableObject {
         guard #available(macOS 26.0, *) else { return }
         let id = url.lastPathComponent
         let tracks = tracksDirectory(for: url)
-        let me = tracks.appendingPathComponent("tu.m4a"), others = tracks.appendingPathComponent("altri.m4a")
+        let me = tracks.appendingPathComponent(RecordingFinalizer.meTrack), others = tracks.appendingPathComponent(RecordingFinalizer.othersTrack)
         let separate = FileManager.default.fileExists(atPath: others.path)
         Diagnostics.log("Trascrizione avviata: \(id) (tracce separate: \(separate))")
         let started = Date()

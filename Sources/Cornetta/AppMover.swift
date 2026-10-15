@@ -20,12 +20,9 @@ enum AppMover {
 
         let destination = URL(fileURLWithPath: "/Applications/Cornetta.app")
         do {
-            if FileManager.default.fileExists(atPath: destination.path) {
-                try FileManager.default.trashItem(at: destination, resultingItemURL: nil)
-            }
             // Dal disco di installazione si copia sempre il pacchetto originale, non la copia temporanea di macOS.
             let source = originalBundleURL() ?? Bundle.main.bundleURL
-            try FileManager.default.copyItem(at: source, to: destination)
+            try AppInstaller.install(source, at: destination)
             Diagnostics.log("Spostata in Applicazioni da \(source.path)")
             let configuration = NSWorkspace.OpenConfiguration()
             configuration.createsNewApplicationInstance = true

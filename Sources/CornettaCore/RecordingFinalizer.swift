@@ -7,6 +7,9 @@ public enum RecordingFinalizer {
     public static let mainName = "registrazione.caf"
     public static let meName = "tu.caf"
     public static let othersName = "altri.caf"
+    /// Tracce vocali convertite, nella cartella delle tracce: le legge la trascrizione.
+    public static let meTrack = "tu.m4a"
+    public static let othersTrack = "altri.m4a"
 
     public struct Result: Sendable {
         public let recording: URL
@@ -19,7 +22,7 @@ public enum RecordingFinalizer {
         let seconds = try convert(main, to: output, sampleRate: 48_000, channels: 2, bitRate: 160_000)
         if let tracksDirectory {
             try FileManager.default.createDirectory(at: tracksDirectory, withIntermediateDirectories: true)
-            for (source, name) in [(meName, "tu.m4a"), (othersName, "altri.m4a")] {
+            for (source, name) in [(meName, meTrack), (othersName, othersTrack)] {
                 let url = workingDirectory.appendingPathComponent(source)
                 if FileManager.default.fileExists(atPath: url.path) {
                     _ = try? convert(url, to: tracksDirectory.appendingPathComponent(name), sampleRate: 16_000, channels: 1, bitRate: 32_000)
