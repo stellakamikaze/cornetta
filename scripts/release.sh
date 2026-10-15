@@ -57,8 +57,9 @@ sed -i '' -E "s/\"softwareVersion\": \"[^\"]+\"/\"softwareVersion\": \"$VERSION\
 LOCAL=$(shasum -a 256 "dist/Cornetta-$VERSION.dmg" | cut -d' ' -f1)
 for attempt in 1 2 3 4 5 6; do
   sleep 10
+  # «|| true»: con pipefail un 404 passeggero chiuderebbe lo script invece di riprovare.
   FEED_OK=$(curl -fsS "$BASE_URL/appcast.xml" | grep -c "<sparkle:shortVersionString>$VERSION<" || true)
-  REMOTE=$(curl -fsSL "$BASE_URL/download" | shasum -a 256 | cut -d' ' -f1)
+  REMOTE=$(curl -fsSL "$BASE_URL/download" | shasum -a 256 | cut -d' ' -f1 || true)
   [ "$FEED_OK" -ge 1 ] && [ "$REMOTE" = "$LOCAL" ] && break
   echo "Verifica $attempt/6: il servizio non è ancora allineato, riprovo."
 done
