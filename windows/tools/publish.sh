@@ -51,10 +51,16 @@ cp "$TMP/redirects" worker/public/_redirects
 (cd worker && npx -y wrangler@4 deploy)
 
 # Verifica sul servizio vero: feed con la versione nuova e installer identico a quello del CI.
-sleep 5
-curl -fsS "$BASE_URL/windows/releases.win.json" | grep -q "\"$VERSION\"" || { echo "Il feed pubblicato non contiene $VERSION"; exit 1; }
-REMOTE=$(curl -fsSL "$BASE_URL/windows/CornettaSetup.exe" | shasum -a 256 | cut -d' ' -f1)
+# Subito dopo il deploy la rete di Cloudflare può servire ancora i file vecchi: si riprova.
 LOCAL=$(shasum -a 256 "$DEST/CornettaSetup.exe" | cut -d' ' -f1)
+for attempt in 1 2 3 4 5 6; do
+  sleep 10
+  FEED_OK=$(curl -fsS "$BASE_URL/windows/releases.win.json" | grep -c "\"$VERSION\"" || true)
+  REMOTE=$(curl -fsSL "$BASE_URL/windows/CornettaSetup.exe" | shasum -a 256 | cut -d' ' -f1 || true)
+  [ "$FEED_OK" -ge 1 ] && [ "$REMOTE" = "$LOCAL" ] && break
+  echo "Verifica $attempt/6: il servizio non è ancora allineato, riprovo."
+done
+[ "$FEED_OK" -ge 1 ] || { echo "Il feed pubblicato non contiene $VERSION"; exit 1; }
 [ "$REMOTE" = "$LOCAL" ] || { echo "Il CornettaSetup.exe scaricato non coincide con quello del CI"; exit 1; }
 curl -fsS "$BASE_URL/downloads/latest.json" | grep -q '"windows"' || { echo "latest.json pubblicato senza la voce windows"; exit 1; }
 VIA_REDIRECT=$(curl -fsSL "$BASE_URL/download/windows" | shasum -a 256 | cut -d' ' -f1)
