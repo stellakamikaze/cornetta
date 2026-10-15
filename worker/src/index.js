@@ -25,7 +25,9 @@ export default {
     if (url.pathname === "/js/p.js") return plausibleScript(request);
     if (url.pathname === "/api/e") return plausibleEvent(request);
     if (url.pathname === "/download" || url.pathname === "/download/windows") {
-      ctx.waitUntil(countDownload(request, url.pathname === "/download" ? "macos" : "windows"));
+      const platform = url.pathname === "/download" ? "macos" : "windows";
+      ctx.waitUntil(countDownload(request, platform));
+      ctx.waitUntil(announceDownload(request, env, platform));
       return env.ASSETS.fetch(request);
     }
     if (url.pathname === "/api/feedback") {
@@ -35,7 +37,7 @@ export default {
       if (!(request.headers.get("content-type") || "").startsWith("application/json")) {
         return json({ ok: false, error: "Serve application/json" }, 415);
       }
-      return saveFeedback(request, env);
+      return saveFeedback(request, env, ctx);
     }
     if (url.pathname === "/api/health") return json({ ok: true });
     if (url.pathname.startsWith("/api/")) return json({ ok: false, error: "Non trovato" }, 404);
@@ -99,6 +101,61 @@ async function saveTelemetry(request, env) {
   return json({ ok: true });
 }
 
+// MARK: - Avvisi su Telegram (@autoarturobot)
+// Un messaggio a Federico per ogni download di una persona e per ogni feedback. Secret TELEGRAM_TOKEN e
+// TELEGRAM_CHAT: senza, non parte niente. Bot e crawler non contano, e lo stesso visitatore non si
+// ripete per un'ora (Cache API, senza scritture in KV).
+
+const BOT_AGENT = /bot|crawl|spider|slurp|preview|curl|wget|python|httpx|aiohttp|go-http|java\/|okhttp|headless|lighthouse|monitor|uptime|scan|fetch|axios|node|libwww|facebookexternalhit|whatsapp|telegram/i;
+
+export function looksHuman(request) {
+  const agent = request.headers.get("user-agent") || "";
+  if (!agent || BOT_AGENT.test(agent)) return false;
+  if (request.cf?.verifiedBotCategory) return false;
+  return /Mozilla\/5\.0/.test(agent);
+}
+
+async function firstInAnHour(key) {
+  const cache = caches.default;
+  const request = new Request(`https://avvisi.cornetta.invalid/${key}`);
+  if (await cache.match(request)) return false;
+  await cache.put(request, new Response("1", { headers: { "cache-control": "max-age=3600" } }));
+  return true;
+}
+
+async function telegram(env, text) {
+  if (!env.TELEGRAM_TOKEN || !env.TELEGRAM_CHAT) return;
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ chat_id: env.TELEGRAM_CHAT, text, disable_web_page_preview: true }),
+    });
+    const result = await response.json().catch(() => ({}));
+    console.log(result.ok ? `Telegram: messaggio ${result.result?.message_id} inviato` : `Telegram ha risposto ${response.status}`);
+  } catch (e) {
+    console.log("Telegram non raggiungibile", e && e.message);
+  }
+}
+
+async function announceDownload(request, env, platform) {
+  if (!looksHuman(request)) return;
+  const ip = request.headers.get("cf-connecting-ip") || "";
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${platform}:${ip}`));
+  const key = [...new Uint8Array(digest)].slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
+  if (!(await firstInAnHour(key))) return;
+  let version = "";
+  try {
+    const latest = await (await env.ASSETS.fetch(new Request(`https://${SITE}/downloads/latest.json`))).json();
+    version = latest[platform]?.version || "";
+  } catch {}
+  let from = "";
+  try { from = new URL(request.headers.get("referer") || "").hostname; } catch {}
+  const where = request.cf?.country || "";
+  await telegram(env, `Cornetta: download per ${platform === "windows" ? "Windows" : "Mac"}${version ? " " + version : ""}`
+    + (where ? `, da ${where}` : "") + (from && from !== SITE ? ` (arriva da ${from})` : ""));
+}
+
 // MARK: - Statistiche delle visite (Plausible, senza cookie)
 
 function plausibleHeaders(request) {
@@ -142,7 +199,7 @@ async function countDownload(request, platform) {
   try { await fetch(PLAUSIBLE + "/api/event", { method: "POST", headers: plausibleHeaders(request), body }); } catch {}
 }
 
-async function saveFeedback(request, env) {
+async function saveFeedback(request, env, ctx) {
   const length = Number(request.headers.get("content-length") || 0);
   if (length > MAX_BODY) return json({ ok: false, error: "Messaggio troppo lungo" }, 413);
 
@@ -196,6 +253,12 @@ async function saveFeedback(request, env) {
   } catch {
     return json({ ok: false, error: "Archivio non disponibile, riprova tra poco" }, 503);
   }
+  ctx.waitUntil(telegram(env, [
+    `Cornetta: feedback da ${record.platform === "windows" ? "Windows" : "Mac"} ${record.app.version || "?"}${record.country ? ", " + record.country : ""}`,
+    `«${message.slice(0, 600)}${message.length > 600 ? "…" : ""}»`,
+    record.email ? "Ha lasciato l'email per la risposta." : "",
+    `scripts/feedback.py show ${id}`,
+  ].filter(Boolean).join("\n")));
   return json({ ok: true, id });
 }
 
