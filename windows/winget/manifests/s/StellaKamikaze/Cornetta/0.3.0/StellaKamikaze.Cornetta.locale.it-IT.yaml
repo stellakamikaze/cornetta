@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://aka.ms/winget-manifest.locale.1.10.0.schema.json
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.locale.1.12.0.schema.json
 PackageIdentifier: StellaKamikaze.Cornetta
 PackageVersion: 0.3.0
 PackageLocale: it-IT
@@ -13,4 +13,4 @@ Description: |-
   Registra il microfono e l'audio dell'app di chiamata, sui dispositivi che Windows assegna alle comunicazioni, in un file .m4a in Musica\Cornetta.
   Si accorge quando un'app inizia a usare il microfono e propone di registrare. Senza account, senza driver audio, senza permessi di amministratore. Beta.
 ManifestType: locale
-ManifestVersion: 1.10.0
+ManifestVersion: 1.12.0
