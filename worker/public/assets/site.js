@@ -3,8 +3,8 @@
   "use strict";
   var it = document.documentElement.lang !== "en";
   var t = it
-    ? { mac: "Scarica per Mac", win: "Scarica per Windows", phone: "Cornetta funziona sul computer: apri questa pagina dal Mac o dal PC.", winSoon: "La versione per Windows è in arrivo.", copy: "Copia il link", copied: "Link copiato", mb: "MB", version: "Versione" }
-    : { mac: "Download for Mac", win: "Download for Windows", phone: "Cornetta runs on your computer: open this page on your Mac or PC.", winSoon: "The Windows version is coming soon.", copy: "Copy link", copied: "Link copied", mb: "MB", version: "Version" };
+    ? { mac: "Scarica per Mac", win: "Scarica per Windows", phone: "Cornetta funziona sul computer: apri questa pagina dal Mac o dal PC.", winSoon: "La versione per Windows è in arrivo.", copy: "Copia il link", copied: "Link copiato", mb: "MB", version: "Versione", winReq: "Windows 10 e 11" }
+    : { mac: "Download for Mac", win: "Download for Windows", phone: "Cornetta runs on your computer: open this page on your Mac or PC.", winSoon: "The Windows version is coming soon.", copy: "Copy link", copied: "Link copied", mb: "MB", version: "Version", winReq: "Windows 10 and 11" };
 
   var ua = navigator.userAgent;
   var isPhone = /iPhone|iPad|iPod|Android/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
@@ -35,6 +35,13 @@
           document.querySelectorAll("[data-download-primary]").forEach(function (a) {
             a.href = "/download/windows";
             a.querySelector("span").textContent = t.win;
+          });
+          // Su un PC il pulsante principale è già Windows: la riga «Hai un PC?» lascia il posto a «Hai un Mac?».
+          document.querySelectorAll(".meta-alt[data-windows]").forEach(function (el) { el.hidden = true; });
+          document.querySelectorAll("[data-windows-mac]").forEach(function (el) { el.hidden = false; });
+          document.querySelectorAll("[data-meta=mac]").forEach(function (el) {
+            var info = latest.windows;
+            el.textContent = t.version + " " + info.version + " beta · " + size(info.size) + " · " + t.winReq;
           });
         }
       } else if (isWindows) {

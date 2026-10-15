@@ -34,7 +34,9 @@ cp "dist/Cornetta-$VERSION.dmg" "$DOWNLOADS/"
 
 "$SPARKLE_BIN/generate_appcast" --account cornetta --download-url-prefix "$BASE_URL/downloads/" \
   --embed-release-notes -o worker/public/appcast.xml "$DOWNLOADS"
-printf '/download /downloads/Cornetta-%s.dmg 302\n' "$VERSION" > worker/public/_redirects
+# Cambia solo la riga del Mac: /download/windows la scrive windows/tools/publish.sh e deve restare.
+{ printf '/download /downloads/Cornetta-%s.dmg 302\n' "$VERSION"; grep -v '^/download ' worker/public/_redirects 2>/dev/null || true; } > worker/public/_redirects.new
+mv worker/public/_redirects.new worker/public/_redirects
 # latest.json: versione, peso e SHA-256 letti dalla pagina. Conserva la voce Windows se c'è.
 python3 - "$VERSION" "dist/Cornetta-$VERSION.dmg" "$BASE_URL" <<'PY'
 import hashlib, json, os, sys

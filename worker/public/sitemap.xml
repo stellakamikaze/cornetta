@@ -2,16 +2,30 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://cornetta.stellakamikaze.org/</loc>
-    <lastmod>2026-10-14</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <xhtml:link rel="alternate" hreflang="it" href="https://cornetta.stellakamikaze.org/"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://cornetta.stellakamikaze.org/en/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://cornetta.stellakamikaze.org/en/"/>
   </url>
   <url>
     <loc>https://cornetta.stellakamikaze.org/en/</loc>
-    <lastmod>2026-10-14</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <xhtml:link rel="alternate" hreflang="it" href="https://cornetta.stellakamikaze.org/"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://cornetta.stellakamikaze.org/en/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://cornetta.stellakamikaze.org/en/"/>
+  </url>
+  <url>
+    <loc>https://cornetta.stellakamikaze.org/privacy/</loc>
+    <lastmod>2026-10-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="it" href="https://cornetta.stellakamikaze.org/privacy/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://cornetta.stellakamikaze.org/en/privacy/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://cornetta.stellakamikaze.org/en/privacy/"/>
+  </url>
+  <url>
+    <loc>https://cornetta.stellakamikaze.org/en/privacy/</loc>
+    <lastmod>2026-10-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="it" href="https://cornetta.stellakamikaze.org/privacy/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://cornetta.stellakamikaze.org/en/privacy/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://cornetta.stellakamikaze.org/en/privacy/"/>
   </url>
 </urlset>

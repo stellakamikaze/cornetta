@@ -33,6 +33,21 @@ mkdir -p "$DEST"
 cp "$TMP"/upload/* "$DEST"/
 ls -la "$DEST"
 
+# La homepage propone Windows solo se latest.json ha la voce «windows» (worker/public/assets/site.js).
+python3 - "$VERSION" "$DEST/CornettaSetup.exe" "$BASE_URL" <<'PY'
+import hashlib, json, os, sys
+version, exe, base = sys.argv[1:4]
+path = "worker/public/downloads/latest.json"
+latest = json.load(open(path)) if os.path.exists(path) else {}
+latest["windows"] = {"version": version, "size": os.path.getsize(exe),
+                     "sha256": hashlib.sha256(open(exe, "rb").read()).hexdigest(), "url": base + "/download/windows"}
+json.dump(latest, open(path, "w"), indent=2)
+PY
+# /download/windows punta all'installer; la riga del Mac la scrive scripts/release.sh e resta.
+grep -v '^/download/windows ' worker/public/_redirects > "$TMP/redirects" || true
+echo "/download/windows /windows/CornettaSetup.exe 302" >> "$TMP/redirects"
+cp "$TMP/redirects" worker/public/_redirects
+
 (cd worker && npx -y wrangler@4 deploy)
 
 # Verifica sul servizio vero: feed con la versione nuova e installer identico a quello del CI.
@@ -41,6 +56,12 @@ curl -fsS "$BASE_URL/windows/releases.win.json" | grep -q "\"$VERSION\"" || { ec
 REMOTE=$(curl -fsSL "$BASE_URL/windows/CornettaSetup.exe" | shasum -a 256 | cut -d' ' -f1)
 LOCAL=$(shasum -a 256 "$DEST/CornettaSetup.exe" | cut -d' ' -f1)
 [ "$REMOTE" = "$LOCAL" ] || { echo "Il CornettaSetup.exe scaricato non coincide con quello del CI"; exit 1; }
+curl -fsS "$BASE_URL/downloads/latest.json" | grep -q '"windows"' || { echo "latest.json pubblicato senza la voce windows"; exit 1; }
+VIA_REDIRECT=$(curl -fsSL "$BASE_URL/download/windows" | shasum -a 256 | cut -d' ' -f1)
+[ "$VIA_REDIRECT" = "$LOCAL" ] || { echo "/download/windows non porta all'installer nuovo"; exit 1; }
+
+git add worker/public/_redirects
+git diff --cached --quiet || git commit -q -m "Windows $VERSION: /download/windows"
 
 if ! gh release view "win-v$VERSION" >/dev/null 2>&1; then
   gh release create "win-v$VERSION" "$DEST/CornettaSetup.exe" --title "Cornetta $VERSION per Windows" \

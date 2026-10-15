@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy – Cornetta</title>
+<meta name="description" content="What stays on your computer and what does not: recordings and transcripts stay on your computer, the website counts visits without cookies, the app sends anonymous usage data you can turn off.">
+<link rel="canonical" href="https://cornetta.stellakamikaze.org/en/privacy/">
+<link rel="alternate" hreflang="it" href="https://cornetta.stellakamikaze.org/privacy/">
+<link rel="alternate" hreflang="en" href="https://cornetta.stellakamikaze.org/en/privacy/">
+<link rel="alternate" hreflang="x-default" href="https://cornetta.stellakamikaze.org/en/privacy/">
+<meta name="robots" content="index, follow">
+<meta name="author" content="Federico Nejrotti">
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/img/cornetta-icon.webp" type="image/webp">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/assets/site.css">
+<script defer data-domain="cornetta.stellakamikaze.org" data-api="/api/e" src="/js/p.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="nav">
+  <div class="wrap">
+    <a class="logo" href="/en/" aria-label="Cornetta, home page"><img src="/img/cornetta-icon.webp" alt="" width="30" height="30">Cornetta</a>
+    <ul>
+      <li><a href="/en/#features">Features</a></li>
+      <li><a href="/en/#install">Install</a></li>
+      <li><a href="/en/#faq">FAQ</a></li>
+      <li><a href="/privacy/" hreflang="it" lang="it">Italiano</a></li>
+    </ul>
+    <a class="btn btn-primary" href="/download" data-download-primary><span>Download</span></a>
+  </div>
+</header>
+
+<main id="main" class="prose-page">
+  <article class="wrap prose">
+    <h1>What stays on your computer, and what does not.</h1>
+    <p class="lede-small">Recordings and transcripts never leave your computer. The website counts visits without cookies. The app sends a little anonymous usage data, which you can turn off.</p>
+    <p class="updated">Updated 15 October 2026.</p>
+
+    <h2>Recordings and transcripts</h2>
+    <p>They stay on your computer, in the Music › Cornetta folder. Transcription uses the Mac's own speech recognition and runs on the Mac. Cornetta never sends audio or text to anyone, including its developer.</p>
+
+    <h2>Website visit statistics</h2>
+    <p>The website uses <a href="https://plausible.io/">Plausible</a>, installed on a server run by Federico Nejrotti. Plausible uses no cookies and stores nothing on your device, so there is no banner.</p>
+    <p>It counts:</p>
+    <ul>
+      <li>pages visited and downloads;</li>
+      <li>the site you came from;</li>
+      <li>country, browser and operating system.</li>
+    </ul>
+    <p>Your IP address is only used to compute a code that changes every day, so the same visit is not counted twice. The address is not stored. The data is not shared and not used for advertising.</p>
+
+    <h2>App usage data</h2>
+    <p>Cornetta sends a short message when one of these things happens:</p>
+    <ul>
+      <li>the app opens, or opens after an update;</li>
+      <li>a recording ends: successful or failed, and how long it lasted, in broad ranges (under a minute, 1 to 5 minutes, and so on);</li>
+      <li>a transcription ends: successful or failed.</li>
+    </ul>
+    <p>Each message carries the Cornetta version, the system version, the processor type, the technical code of any error and a random installation number. The country is added by Cloudflare's network, not by the app.</p>
+    <p>Cornetta never sends audio, text, file names, device names, your contacts or the app you call with. The IP address is not stored.</p>
+    <p>This data shows whether a new version breaks something, and on which systems, so it can be fixed before you have to report it. It is kept for 12 months, then deleted automatically.</p>
+    <p><strong>How to turn it off:</strong> in the Cornetta menu, untick <strong>Invia dati di funzionamento</strong> (Send usage data). From then on the app sends nothing and deletes its installation number.</p>
+    <p>The code that sends this data is public: <a href="https://github.com/stellakamikaze/cornetta/blob/master/Sources/Cornetta/Telemetry.swift">Mac</a>, <a href="https://github.com/stellakamikaze/cornetta/blob/master/windows/src/Cornetta.App/Telemetry.cs">Windows</a>, <a href="https://github.com/stellakamikaze/cornetta/blob/master/worker/src/index.js">the service that receives it</a>.</p>
+
+    <h2>Feedback</h2>
+    <p>The Feedback button sends your message only when you press it. Name and email are optional, and technical diagnostics are sent only if you choose them. Feedback is deleted automatically after 90 days.</p>
+
+    <h2>Updates</h2>
+    <p>At launch and every 4 hours the app checks for a new version by downloading the version list from cornetta.stellakamikaze.org. The request carries only the installed version.</p>
+
+    <h2>Who handles the data</h2>
+    <p>Cornetta is a personal project by <a href="https://stellakamikaze.org/">Federico Nejrotti</a>. The website and services run on Cloudflare. Visit statistics run on Federico's own server. For questions or requests use the Feedback button in the app, or open an issue <a href="https://github.com/stellakamikaze/cornetta/issues">on GitHub</a>.</p>
+  </article>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>Cornetta is a project by <a href="https://stellakamikaze.org/">Federico Nejrotti</a>.<small>Recordings stay on your computer. This site counts visits without cookies. <a href="/en/privacy/">Privacy</a> · <a href="https://github.com/stellakamikaze/cornetta">Code</a></small></div>
+    <ul>
+      <li><a href="/en/#features">Features</a></li>
+      <li><a href="/en/#install">Install</a></li>
+      <li><a href="/en/#faq">FAQ</a></li>
+      <li><a href="/privacy/" hreflang="it" lang="it">Italiano</a></li>
+    </ul>
+  </div>
+</footer>
+<script src="/assets/site.js" defer></script>
+</body>
+</html>

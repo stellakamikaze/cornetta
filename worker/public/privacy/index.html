@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy – Cornetta</title>
+<meta name="description" content="Cosa resta sul computer e cosa no: registrazioni e trascrizioni restano sul tuo computer, il sito conta le visite senza cookie, l'app manda dati di funzionamento anonimi che puoi spegnere.">
+<link rel="canonical" href="https://cornetta.stellakamikaze.org/privacy/">
+<link rel="alternate" hreflang="it" href="https://cornetta.stellakamikaze.org/privacy/">
+<link rel="alternate" hreflang="en" href="https://cornetta.stellakamikaze.org/en/privacy/">
+<link rel="alternate" hreflang="x-default" href="https://cornetta.stellakamikaze.org/en/privacy/">
+<meta name="robots" content="index, follow">
+<meta name="author" content="Federico Nejrotti">
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/img/cornetta-icon.webp" type="image/webp">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/assets/site.css">
+<script defer data-domain="cornetta.stellakamikaze.org" data-api="/api/e" src="/js/p.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Vai al contenuto</a>
+<header class="nav">
+  <div class="wrap">
+    <a class="logo" href="/" aria-label="Cornetta, pagina iniziale"><img src="/img/cornetta-icon.webp" alt="" width="30" height="30">Cornetta</a>
+    <ul>
+      <li><a href="/#funzioni">Funzioni</a></li>
+      <li><a href="/#installazione">Installazione</a></li>
+      <li><a href="/#domande">Domande</a></li>
+      <li><a href="/en/privacy/" hreflang="en" lang="en">English</a></li>
+    </ul>
+    <a class="btn btn-primary" href="/download" data-download-primary><span>Scarica</span></a>
+  </div>
+</header>
+
+<main id="main" class="prose-page">
+  <article class="wrap prose">
+    <h1>Cosa resta sul tuo computer, e cosa no.</h1>
+    <p class="lede-small">Le registrazioni e le trascrizioni non lasciano mai il computer. Il sito conta le visite senza cookie. L'app manda pochi dati di funzionamento anonimi, che puoi spegnere.</p>
+    <p class="updated">Aggiornata il 15 ottobre 2026.</p>
+
+    <h2>Registrazioni e trascrizioni</h2>
+    <p>Restano sul tuo computer, nella cartella Musica › Cornetta. La trascrizione usa il riconoscimento vocale del Mac e gira sul Mac. Cornetta non invia l'audio né il testo a nessuno, nemmeno a chi la sviluppa.</p>
+
+    <h2>Statistiche delle visite al sito</h2>
+    <p>Il sito usa <a href="https://plausible.io/">Plausible</a>, installato su un server di Federico Nejrotti. Plausible non usa cookie e non salva niente sul tuo dispositivo, quindi non serve nessun banner.</p>
+    <p>Conta queste cose:</p>
+    <ul>
+      <li>le pagine visitate e i download;</li>
+      <li>il sito da cui arrivi;</li>
+      <li>il paese, il browser e il sistema operativo.</li>
+    </ul>
+    <p>Il tuo indirizzo IP serve solo a calcolare un codice che cambia ogni giorno, per non contare due volte la stessa visita. L'indirizzo non viene salvato. I dati non vanno a terzi e non servono per pubblicità.</p>
+
+    <h2>Dati di funzionamento dell'app</h2>
+    <p>Cornetta manda un breve messaggio quando succedono queste cose:</p>
+    <ul>
+      <li>l'app si apre, o si apre dopo un aggiornamento;</li>
+      <li>una registrazione finisce: riuscita o con errore, e quanto è durata, in fasce larghe (meno di un minuto, da 1 a 5 minuti, e così via);</li>
+      <li>una trascrizione finisce: riuscita o con errore.</li>
+    </ul>
+    <p>Ogni messaggio porta la versione di Cornetta, la versione del sistema, il tipo di processore, il codice tecnico di un eventuale errore e un numero di installazione casuale. Il paese lo aggiunge la rete di Cloudflare, non l'app.</p>
+    <p>Cornetta non manda mai l'audio, i testi, i nomi dei file, i nomi dei dispositivi, i tuoi contatti o l'app con cui chiami. L'indirizzo IP non viene salvato.</p>
+    <p>Questi dati servono a capire se una versione nuova rompe qualcosa, su quali sistemi, e a correggerlo prima che tu debba scriverlo. Restano 12 mesi, poi si cancellano da soli.</p>
+    <p><strong>Come spegnerli:</strong> nel menu di Cornetta togli la spunta a <strong>Invia dati di funzionamento</strong>. Da quel momento l'app non manda più niente e cancella il suo numero di installazione.</p>
+    <p>Il codice che manda questi dati è pubblico: <a href="https://github.com/stellakamikaze/cornetta/blob/master/Sources/Cornetta/Telemetry.swift">Mac</a>, <a href="https://github.com/stellakamikaze/cornetta/blob/master/windows/src/Cornetta.App/Telemetry.cs">Windows</a>, <a href="https://github.com/stellakamikaze/cornetta/blob/master/worker/src/index.js">servizio che li riceve</a>.</p>
+
+    <h2>Feedback</h2>
+    <p>Il pulsante Feedback manda il tuo messaggio solo quando lo premi. Nome ed email sono facoltativi, e anche la diagnostica tecnica parte solo se la scegli. I feedback si cancellano da soli dopo 90 giorni.</p>
+
+    <h2>Aggiornamenti</h2>
+    <p>All'avvio e ogni 4 ore l'app controlla se c'è una versione nuova, scaricando l'elenco delle versioni da cornetta.stellakamikaze.org. La richiesta contiene solo la versione installata.</p>
+
+    <h2>Chi gestisce i dati</h2>
+    <p>Cornetta è un progetto personale di <a href="https://stellakamikaze.org/">Federico Nejrotti</a>. Il sito e i servizi girano su Cloudflare. Le statistiche delle visite girano su un server di Federico. Per domande o richieste usa il pulsante Feedback nell'app, oppure apri una segnalazione <a href="https://github.com/stellakamikaze/cornetta/issues">su GitHub</a>.</p>
+  </article>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>Cornetta è un progetto di <a href="https://stellakamikaze.org/">Federico Nejrotti</a>.<small>Le registrazioni restano sul tuo computer. Il sito conta le visite senza cookie. <a href="/privacy/">Privacy</a> · <a href="https://github.com/stellakamikaze/cornetta">Codice</a></small></div>
+    <ul>
+      <li><a href="/#funzioni">Funzioni</a></li>
+      <li><a href="/#installazione">Installazione</a></li>
+      <li><a href="/#domande">Domande</a></li>
+      <li><a href="/en/privacy/" hreflang="en" lang="en">English</a></li>
+    </ul>
+  </div>
+</footer>
+<script src="/assets/site.js" defer></script>
+</body>
+</html>
