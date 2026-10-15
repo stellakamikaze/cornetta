@@ -27,5 +27,6 @@ Key facts:
 ## Downloads
 - [Download for Mac](https://cornetta.stellakamikaze.org/download): latest signed disk image
 - [Download for Windows (beta)](https://cornetta.stellakamikaze.org/download/windows): per-user installer
+- Homebrew (Mac): `brew install --cask stellakamikaze/tap/cornetta` (tap: https://github.com/stellakamikaze/homebrew-tap)
 - [Latest version info](https://cornetta.stellakamikaze.org/downloads/latest.json): version, size, SHA-256
 - [Update feed](https://cornetta.stellakamikaze.org/appcast.xml): Sparkle appcast with release notes

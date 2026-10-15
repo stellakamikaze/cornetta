@@ -72,4 +72,15 @@ git tag "v$VERSION"
 git push -q origin HEAD "v$VERSION"
 NOTES=$(printf -- '- %s\n' "$@")
 gh release create "v$VERSION" "dist/Cornetta-$VERSION.dmg" --title "Cornetta $VERSION" --notes "$NOTES" >/dev/null
+
+# Homebrew: il cask di stellakamikaze/homebrew-tap segue la release (brew install --cask stellakamikaze/tap/cornetta).
+TAP=$(mktemp -d)
+if gh repo clone stellakamikaze/homebrew-tap "$TAP" -- -q; then
+  SHA=$(shasum -a 256 "dist/Cornetta-$VERSION.dmg" | cut -d' ' -f1)
+  sed -i '' -E "s/^  version \".*\"/  version \"$VERSION\"/; s/^  sha256 \".*\"/  sha256 \"$SHA\"/" "$TAP/Casks/cornetta.rb"
+  git -C "$TAP" commit -qam "Cornetta $VERSION" && git -C "$TAP" push -q && echo "→ Cask Homebrew aggiornato a $VERSION"
+else
+  echo "Attenzione: tap Homebrew non aggiornato, fallo a mano in stellakamikaze/homebrew-tap"
+fi
+rm -rf "$TAP"
 echo "✓ Cornetta $VERSION pubblicata: $BASE_URL"

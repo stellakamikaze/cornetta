@@ -3,6 +3,7 @@
 **Free, open-source call recorder for Mac, with a beta for Windows.** Cornetta records your voice from the microphone and the other people from system audio into one `.m4a` file, with any calling app: WhatsApp, FaceTime, Google Meet, Zoom, Microsoft Teams, Slack, Discord, browser calls. No account, no virtual audio driver, no subscription. On macOS 26 it also transcribes each call on the Mac, separating your voice from the others.
 
 - Download: [cornetta.stellakamikaze.org](https://cornetta.stellakamikaze.org/en/) (macOS 14.4+, Apple Silicon and Intel · Windows 10 and 11, beta)
+- Homebrew: `brew install --cask stellakamikaze/tap/cornetta`
 - Privacy: recordings and transcripts never leave your computer. The app sends anonymous usage data that you can turn off: [what is sent](https://cornetta.stellakamikaze.org/en/privacy/)
 - Stack: Swift and Core Audio process taps (`Sources/`), C# .NET Framework 4.8 with NAudio and Velopack (`windows/`), Cloudflare Worker for the site, updates, feedback and telemetry (`worker/`)
 - License: MIT. Interface and code comments are in Italian.
