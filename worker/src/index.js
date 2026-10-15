@@ -102,10 +102,11 @@ async function saveTelemetry(request, env) {
 // MARK: - Statistiche delle visite (Plausible, senza cookie)
 
 function plausibleHeaders(request) {
-  // L'IP reale va nell'X-Forwarded-For: Plausible lo usa solo per l'hash giornaliero dei visitatori, non lo salva.
+  // L'IP reale va in X-Plausible-IP, che Plausible legge prima degli altri header (dietro il Worker CF-Connecting-IP
+  // sarebbe quello di Cloudflare). Plausible lo usa solo per l'hash giornaliero dei visitatori e non lo salva.
   return {
     "user-agent": request.headers.get("user-agent") || "",
-    "x-forwarded-for": request.headers.get("cf-connecting-ip") || "",
+    "x-plausible-ip": request.headers.get("cf-connecting-ip") || "",
     "content-type": "application/json",
   };
 }
