@@ -28,9 +28,9 @@
         var info = latest[el.getAttribute("data-sha")];
         if (info && info.sha256) el.textContent = info.sha256;
       });
+      // L'HTML propone già Windows in beta, così lo leggono anche motori di ricerca e assistenti senza JavaScript.
+      // Se latest.json perde la voce windows, la pagina torna a «in sviluppo».
       if (latest.windows) {
-        document.querySelectorAll("[data-windows]").forEach(function (el) { el.hidden = false; });
-        document.querySelectorAll("[data-windows-soon]").forEach(function (el) { el.hidden = true; });
         if (isWindows) {
           document.querySelectorAll("[data-download-primary]").forEach(function (a) {
             a.href = "/download/windows";
@@ -44,9 +44,11 @@
             el.textContent = t.version + " " + info.version + " beta · " + size(info.size) + " · " + t.winReq;
           });
         }
-      } else if (isWindows) {
+      } else {
+        document.querySelectorAll("[data-windows]").forEach(function (el) { el.hidden = true; });
+        document.querySelectorAll("[data-windows-soon]").forEach(function (el) { el.hidden = false; });
         var note = document.getElementById("os-note");
-        if (note) { note.textContent = t.winSoon; note.hidden = false; }
+        if (note && isWindows) { note.textContent = t.winSoon; note.hidden = false; }
       }
     })
     .catch(function () {});
