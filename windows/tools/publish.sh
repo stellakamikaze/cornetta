@@ -75,7 +75,8 @@ git add worker/public/_redirects
 git diff --cached --quiet || git commit -q -m "Windows $VERSION: /download/windows"
 
 if ! gh release view "win-v$VERSION" >/dev/null 2>&1; then
-  gh release create "win-v$VERSION" "$DEST/CornettaSetup.exe" --title "Cornetta $VERSION per Windows" \
+  # --latest=false: la release in evidenza su GitHub resta quella del Mac, la versione principale.
+  gh release create "win-v$VERSION" "$DEST/CornettaSetup.exe" --title "Cornetta $VERSION per Windows" --latest=false \
     --notes "Installer per utente, senza permessi di amministratore. Si aggiorna da solo." >/dev/null
 fi
 echo "Cornetta $VERSION per Windows pubblicata: $BASE_URL/windows/CornettaSetup.exe"
