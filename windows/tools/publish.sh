@@ -4,12 +4,15 @@
 #   windows/tools/publish.sh 0.3.0                        # scarica gli artifact e li mette online
 # Le app installate vedono la versione nuova al prossimo controllo (all'avvio e ogni 4 ore).
 #
-# Attenzione: wrangler deploy pubblica TUTTA la cartella worker/public. Se una macchina non ha
-# worker/public/windows/, un deploy da lì (anche scripts/release.sh del Mac) toglie dal sito il feed Windows.
+# wrangler deploy pubblica TUTTA la cartella worker/public: lo script riparte dai file pubblicati
+# (scripts/sync-published.py), così non toglie dal sito i DMG del Mac se la macchina non li ha.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 VERSION="${1:?Uso: windows/tools/publish.sh VERSIONE (es. 0.3.0)}"
+git fetch -q origin
+[ -z "$(git rev-list HEAD..@{u})" ] || { echo "Il repo è indietro rispetto a GitHub: git pull prima di pubblicare."; exit 1; }
+python3 scripts/sync-published.py
 BASE_URL="https://cornetta.stellakamikaze.org"
 DEST="worker/public/windows"
 ARTIFACT="cornetta-windows-$VERSION"
@@ -48,6 +51,7 @@ grep -v '^/download/windows ' worker/public/_redirects > "$TMP/redirects" || tru
 echo "/download/windows /windows/CornettaSetup.exe 302" >> "$TMP/redirects"
 cp "$TMP/redirects" worker/public/_redirects
 
+python3 scripts/sync-published.py --check
 (cd worker && npx -y wrangler@4 deploy)
 
 # Verifica sul servizio vero: feed con la versione nuova e installer identico a quello del CI.
@@ -65,6 +69,7 @@ done
 curl -fsS "$BASE_URL/downloads/latest.json" | grep -q '"windows"' || { echo "latest.json pubblicato senza la voce windows"; exit 1; }
 VIA_REDIRECT=$(curl -fsSL "$BASE_URL/download/windows" | shasum -a 256 | cut -d' ' -f1)
 [ "$VIA_REDIRECT" = "$LOCAL" ] || { echo "/download/windows non porta all'installer nuovo"; exit 1; }
+python3 scripts/sync-published.py --verify
 
 git add worker/public/_redirects
 git diff --cached --quiet || git commit -q -m "Windows $VERSION: /download/windows"

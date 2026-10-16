@@ -14,6 +14,11 @@ SPARKLE_BIN=".build/artifacts/sparkle/Sparkle/bin"
 
 git diff --quiet && git diff --cached --quiet || { echo "Ci sono modifiche non committate: committa prima di pubblicare."; exit 1; }
 git rev-parse "v$VERSION" >/dev/null 2>&1 && { echo "Il tag v$VERSION esiste già."; exit 1; }
+git fetch -q origin
+[ -z "$(git rev-list HEAD..@{u})" ] || { echo "Il repo è indietro rispetto a GitHub: git pull prima di pubblicare."; exit 1; }
+# Riparte dai file pubblicati (DMG, delta, latest.json, feed Windows): wrangler deploy pubblica tutta
+# worker/public, e una release da una macchina che non li ha li toglierebbe dal sito.
+python3 scripts/sync-published.py
 
 scripts/test.sh >/dev/null
 VERSION="$VERSION" scripts/build-dmg.sh
@@ -50,6 +55,7 @@ PY
 # La versione nei dati strutturati delle due pagine segue la release.
 sed -i '' -E "s/\"softwareVersion\": \"[^\"]+\"/\"softwareVersion\": \"$VERSION\"/" worker/public/index.html worker/public/en/index.html
 
+python3 scripts/sync-published.py --check
 (cd worker && npx -y wrangler@4 deploy)
 
 # Verifica sul servizio vero: feed con la versione nuova e DMG identico a quello locale.
@@ -65,6 +71,7 @@ for attempt in 1 2 3 4 5 6; do
 done
 [ "$FEED_OK" -ge 1 ] || { echo "Il feed pubblicato non contiene $VERSION"; exit 1; }
 [ "$REMOTE" = "$LOCAL" ] || { echo "Il DMG scaricato non coincide con quello locale"; exit 1; }
+python3 scripts/sync-published.py --verify
 
 git add worker/public/appcast.xml worker/public/_redirects worker/public/index.html worker/public/en/index.html
 git commit -q -m "Release $VERSION"
