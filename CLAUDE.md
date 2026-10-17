@@ -7,6 +7,7 @@ Registratore di chiamate gratuito e open source: app Mac (Swift, `Sources/`), ap
 ```bash
 scripts/test.sh                                  # test Mac (Core e app)
 cd windows && dotnet test Cornetta.Windows.sln   # test Windows, girano anche su Mac
+python3 -m unittest discover -s scripts/tests   # test degli script (publish, firma, feedback)
 scripts/deploy-site.sh                           # pagine e Worker, da qualunque macchina
 scripts/release.sh X.Y.Z "novità" …              # versione Mac: solo da un Mac col certificato
 windows/tools/publish.sh X.Y.Z                   # versione Windows, dopo la CI sul tag win-vX.Y.Z

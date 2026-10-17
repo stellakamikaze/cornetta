@@ -10,20 +10,15 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 VERSION="${1:?Uso: windows/tools/publish.sh VERSIONE (es. 0.3.0)}"
-git fetch -q origin
+git fetch -q --tags origin
 [ -z "$(git rev-list HEAD..@{u})" ] || { echo "Il repo è indietro rispetto a GitHub: git pull prima di pubblicare."; exit 1; }
 python3 scripts/sync-published.py
 BASE_URL="https://cornetta.stellakamikaze.org"
 DEST="worker/public/windows"
 ARTIFACT="cornetta-windows-$VERSION"
 
-RUN_ID=$(gh run list --workflow windows.yml --branch "win-v$VERSION" --status success --limit 1 \
-  --json databaseId --jq '.[0].databaseId // empty')
-if [ -z "$RUN_ID" ]; then
-  echo "Nessuna run verde per il tag win-v$VERSION."
-  echo "Prima: git tag win-v$VERSION && git push origin win-v$VERSION, poi aspetta il CI (gh run watch)."
-  exit 1
-fi
+# Solo la run del push del tag, sul commit del tag: mai quella di una pull request col ramo omonimo.
+RUN_ID=$(windows/tools/ci-run.sh "$VERSION")
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
