@@ -57,7 +57,9 @@ namespace Cornetta.Core
                     return ecdsa.VerifyData(feed, signature, HashAlgorithmName.SHA256) ? null : "firma del feed non valida";
                 }
             }
-            catch (CryptographicException ex)
+            // Un punto fuori dalla curva fa lanciare a CNG PlatformNotSupportedException, non CryptographicException
+            // (CI del 17/10/2026, test AnotherKeyIsRefused): ogni eccezione della verifica vale come rifiuto.
+            catch (Exception ex) when (ex is CryptographicException || ex is PlatformNotSupportedException || ex is ArgumentException)
             {
                 return "verifica della firma non riuscita: " + ex.Message;
             }
