@@ -22,7 +22,7 @@ namespace Cornetta.App
         /// Come si genera e dove sta la privata: docs/SERVIZIO.md, «Chiave del feed Windows». windows/tools/sign-feed.py
         /// legge questa riga e la CI dei tag si ferma finché vale FeedSignature.Placeholder.
         /// </summary>
-        public const string UpdateFeedPublicKey = FeedSignature.Placeholder;
+        public const string UpdateFeedPublicKey = "fe2cddcd251de956780221ed31e84f737dd6197acf21d8d1c815dcf20fe2dc0e7089662153861cf448a232696feb65f48358b14d04253125c9277ac810f4de63";
 
         public static string Version
         {
