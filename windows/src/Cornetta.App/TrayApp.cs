@@ -384,6 +384,8 @@ namespace Cornetta.App
 
         private async Task CheckUpdates(bool manual)
         {
+            // Durante l'installazione un controllo potrebbe cambiare l'aggiornamento scelto: si salta.
+            if (installing) return;
             var result = await updates.CheckAsync();
             UpdateTrayIcon();
             switch (result)

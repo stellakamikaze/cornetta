@@ -107,19 +107,21 @@ namespace Cornetta.App
         /// <summary>Scarica, installa e riapre Cornetta. Se va a buon fine il processo termina qui.</summary>
         public async Task InstallAsync(Action<int>? progress, Action beforeRestart)
         {
-            if (manager == null || update == null) return;
+            // Copia locale: durante gli await un controllo del timer o del menu può cambiare il campo update.
+            var target = update;
+            if (manager == null || target == null) return;
             // Di nuovo subito prima di scaricare: dal controllo possono essere passate ore.
-            string? refusal = await SignedFeedRefusal(update).ConfigureAwait(true);
+            string? refusal = await SignedFeedRefusal(target).ConfigureAwait(true);
             if (refusal != null)
             {
-                Diagnostics.Log("Aggiornamento " + update.TargetFullRelease.Version + " rifiutato: " + refusal);
-                update = null;
+                Diagnostics.Log("Aggiornamento " + target.TargetFullRelease.Version + " rifiutato: " + refusal);
+                if (ReferenceEquals(update, target)) update = null;
                 throw new InvalidOperationException("Feed degli aggiornamenti senza firma valida: " + refusal);
             }
-            await manager.DownloadUpdatesAsync(update, progress).ConfigureAwait(true);
-            Diagnostics.Log("Installo l'aggiornamento " + update.TargetFullRelease.Version);
+            await manager.DownloadUpdatesAsync(target, progress).ConfigureAwait(true);
+            Diagnostics.Log("Installo l'aggiornamento " + target.TargetFullRelease.Version);
             beforeRestart();
-            manager.ApplyUpdatesAndRestart(update.TargetFullRelease);
+            manager.ApplyUpdatesAndRestart(target.TargetFullRelease);
         }
 
         /// <summary>

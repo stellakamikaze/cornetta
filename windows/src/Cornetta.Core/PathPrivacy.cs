@@ -19,7 +19,7 @@ namespace Cornetta.Core
             if (profile.Length > 3)
             {
                 // Con le barre in tutte e due le direzioni: nei log a volte compare C:/Users/nome.
-                string pattern = Regex.Escape(profile).Replace(@"\\", @"[\\/]") + @"(?![\w.-])";
+                string pattern = Regex.Escape(profile).Replace(@"\\", @"[\\/]") + @"(?![\w. -])";
                 text = Regex.Replace(text, pattern, "~", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
             }
             return UsersFolder.Replace(text, "$1<utente>");

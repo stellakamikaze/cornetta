@@ -77,6 +77,8 @@ namespace Cornetta.Core.Tests
             Assert.NotNull(FeedSignature.Covers(signed, new FeedAsset { FileName = good.FileName, Size = good.Size, Sha256 = new string('3', 64) }));
             Assert.NotNull(FeedSignature.Covers(signed, new FeedAsset { FileName = good.FileName, Size = 1, Sha256 = good.Sha256 }));
             Assert.NotNull(FeedSignature.Covers(signed, new FeedAsset { FileName = "Cornetta-6.6.6-full.nupkg", Size = good.Size, Sha256 = good.Sha256 }));
+            // Lo SHA-1 conta anche quando c'è lo SHA-256: Velopack può controllare l'uno o l'altro.
+            Assert.NotNull(FeedSignature.Covers(signed, new FeedAsset { FileName = good.FileName, Size = good.Size, Sha256 = good.Sha256, Sha1 = new string('9', 40) }));
             var noHash = new List<FeedAsset> { new FeedAsset { FileName = good.FileName, Size = good.Size } };
             Assert.NotNull(FeedSignature.Covers(noHash, good));
         }

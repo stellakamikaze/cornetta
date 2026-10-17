@@ -35,6 +35,8 @@ namespace Cornetta.Core.Tests
         {
             string clean = PathPrivacy.Anonymize(@"C:\Users\mariolina\Music", @"C:\Users\mario");
             Assert.Equal(@"C:\Users\<utente>\Music", clean);
+            string other = PathPrivacy.Anonymize(@"C:\Users\mario rossi\Music", @"C:\Users\mario");
+            Assert.Equal(@"C:\Users\<utente>\Music", other);
         }
 
         [Fact]

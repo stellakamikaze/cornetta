@@ -88,23 +88,27 @@ namespace Cornetta.Core
             catch (InvalidOperationException) { return null; }
         }
 
-        /// <summary>Null se il feed firmato elenca il pacchetto con lo stesso nome, peso e hash.</summary>
+        /// <summary>
+        /// Null se il feed firmato elenca il pacchetto con lo stesso nome, peso e hash. Ogni hash presente da una
+        /// delle due parti deve coincidere: così non conta quale dei due Velopack controlla sul file scaricato.
+        /// </summary>
         public static string? Covers(IEnumerable<FeedAsset> signed, FeedAsset wanted)
         {
             var entry = signed.FirstOrDefault(a => string.Equals(a.FileName, wanted.FileName, StringComparison.OrdinalIgnoreCase));
             if (entry == null) return wanted.FileName + " non è nel feed firmato";
             if (entry.Size != wanted.Size) return wanted.FileName + ": peso diverso da quello firmato";
-            if (entry.Sha256.Length > 0)
+            if (entry.Sha256.Length == 0 && entry.Sha1.Length == 0) return wanted.FileName + ": il feed firmato non ha l'hash";
+            if ((entry.Sha256.Length > 0 || wanted.Sha256.Length > 0)
+                && !string.Equals(entry.Sha256, wanted.Sha256, StringComparison.OrdinalIgnoreCase))
             {
-                return string.Equals(entry.Sha256, wanted.Sha256, StringComparison.OrdinalIgnoreCase)
-                    ? null : wanted.FileName + ": SHA-256 diverso da quello firmato";
+                return wanted.FileName + ": SHA-256 diverso da quello firmato";
             }
-            if (entry.Sha1.Length > 0)
+            if ((entry.Sha1.Length > 0 || wanted.Sha1.Length > 0)
+                && !string.Equals(entry.Sha1, wanted.Sha1, StringComparison.OrdinalIgnoreCase))
             {
-                return string.Equals(entry.Sha1, wanted.Sha1, StringComparison.OrdinalIgnoreCase)
-                    ? null : wanted.FileName + ": SHA-1 diverso da quello firmato";
+                return wanted.FileName + ": SHA-1 diverso da quello firmato";
             }
-            return wanted.FileName + ": il feed firmato non ha l'hash";
+            return null;
         }
 
         private static byte[]? ParseHex(string hex)

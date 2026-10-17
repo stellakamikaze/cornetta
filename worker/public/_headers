@@ -28,3 +28,10 @@
 
 /llms.txt
   Content-Type: text/plain; charset=utf-8
+
+/windows/releases.win.json
+  Cache-Control: no-cache
+
+/windows/releases.win.json.sig
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: no-cache
