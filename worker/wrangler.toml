@@ -16,22 +16,23 @@ database_id = "0fb4fa0e-9799-4cb9-b020-8936edbde3f8"
 
 # Limiti col binding ratelimits: senza scritture in KV, e la chiave è un hash dell'IPv4 o della /64.
 # Il periodo può essere solo 10 o 60 secondi, e i contatori valgono per località Cloudflare.
+# namespace_id è unico nell'account: 1001 e 1002 li usa il server di Arturo, Cornetta sta su 3001-3003.
 # Telemetria: un'app manda pochi eventi (avvio, registrazione, trascrizione), 6 al minuto bastano.
 [[ratelimits]]
 name = "TELEMETRY_LIMIT"
-namespace_id = "1001"
+namespace_id = "3001"
 simple = { limit = 6, period = 60 }
 
 # Feedback: 2 invii al minuto per IPv4 o /64.
 [[ratelimits]]
 name = "FEEDBACK_LIMIT"
-namespace_id = "1002"
+namespace_id = "3002"
 simple = { limit = 2, period = 60 }
 
 # Avvisi Telegram: tetto fisso per tipo (chiavi «download» e «feedback»), 2 al minuto ciascuno.
 [[ratelimits]]
 name = "ALERT_LIMIT"
-namespace_id = "1003"
+namespace_id = "3003"
 simple = { limit = 2, period = 60 }
 
 # Ogni notte si cancellano gli eventi di telemetria più vecchi di 12 mesi.
