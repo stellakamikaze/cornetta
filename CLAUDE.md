@@ -8,6 +8,7 @@ Registratore di chiamate gratuito e open source: app Mac (Swift, `Sources/`), ap
 scripts/test.sh                                  # test Mac (Core e app)
 cd windows && dotnet test Cornetta.Windows.sln   # test Windows, girano anche su Mac
 python3 -m unittest discover -s scripts/tests   # test degli script (publish, firma, feedback)
+cd worker && node --test                         # test del Worker (Node 22, senza dipendenze)
 scripts/deploy-site.sh                           # pagine e Worker, da qualunque macchina
 scripts/release.sh X.Y.Z "novità" …              # versione Mac: solo da un Mac col certificato
 windows/tools/publish.sh X.Y.Z                   # versione Windows, dopo la CI sul tag win-vX.Y.Z
@@ -32,5 +33,6 @@ scripts/feedback.py · scripts/telemetria.py      # feedback e dati di funzionam
 - NON usare i dispositivi predefiniti generali su Windows: le chiamate passano da quelli del ruolo Comunicazioni.
 - NON fidarti di selftest e `--render-ui` per l'avvio su Windows: non passano dal costruttore di `TrayApp`. La CI prova l'app vera con `--smoke-tray`.
 - NON aspettarti che una build di prova Windows (0.0.<run>) scarichi il feed pubblicato: Velopack rifiuta una versione più bassa.
+- NON pubblicare il Worker prima di applicare una migration nuova di `worker/migrations/`: la telemetria risponde 503 finché la colonna manca (`docs/SERVIZIO.md`).
 - NON verificare un deploy al primo colpo: per qualche secondo Cloudflare può servire i file vecchi o un 404. Gli script riprovano sei volte.
 - NON compilare l'app col Command Line Tools 27 senza Xcode: manca il plugin delle macro di SwiftUI («SwiftUIMacros not found»). Core e test compilano.

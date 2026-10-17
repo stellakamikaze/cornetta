@@ -30,7 +30,18 @@ Se Telegram o Plausible non rispondono il sito funziona lo stesso: gli avvisi e 
 |---|---|---|---|---|
 | D1 `cornetta-telemetria` | `TELEMETRY` | eventi di funzionamento, tabella `eventi` | 12 mesi, cron notturno `17 3 * * *` | `scripts/telemetria.py` |
 | KV `FEEDBACK` | `FEEDBACK` | feedback dall'app | 90 giorni (`KEEP_SECONDS`) | `scripts/feedback.py` |
-| Rate limit | `TELEMETRY_LIMIT` | 60 eventi al minuto per IP | — | — |
+| Rate limit | `TELEMETRY_LIMIT` | 6 eventi al minuto per IPv4 o rete IPv6 /64 | — | — |
+| Rate limit | `FEEDBACK_LIMIT` | 2 feedback al minuto per IPv4 o /64 | — | — |
+| Rate limit | `ALERT_LIMIT` | 2 avvisi Telegram al minuto per tipo (download, feedback) | — | — |
+
+I rate limit usano come chiave un hash dell'indirizzo: l'IP non si salva. Contano per minuto e per località Cloudflare.
+Nella tabella `eventi` resta un solo `avvio` per installazione al giorno (indice unico della migration 0002).
+
+Una migration nuova in `worker/migrations/` va applicata **prima** del deploy del Worker che la usa, altrimenti la telemetria risponde 503:
+
+```bash
+cd worker && npx wrangler@4 d1 migrations apply cornetta-telemetria --remote
+```
 
 Ricreare da zero (i dati vecchi non tornano):
 
@@ -54,7 +65,7 @@ Il rate limit non va creato: basta il blocco `[[ratelimits]]` in `wrangler.toml`
 cd worker && npx wrangler@4 secret put TELEGRAM_TOKEN   # incolla il valore quando lo chiede
 ```
 
-Prova: `npx wrangler@4 tail cornetta` mentre scarichi la pagina da un browser vero. Nel log compare «Telegram: messaggio N inviato». Lo stesso IP manda un solo avviso l'ora per piattaforma.
+Prova: `npx wrangler@4 tail cornetta` mentre scarichi la pagina da un browser vero. Nel log compare «Telegram: messaggio N inviato». Lo stesso IPv4 o la stessa rete IPv6 /64 manda un solo avviso l'ora per piattaforma, e sopra ogni tipo di avviso c'è il tetto di `ALERT_LIMIT` («Avviso download saltato» nel log).
 
 ## File pubblicati persi
 

@@ -51,12 +51,12 @@
       <li>country, browser and operating system.</li>
     </ul>
     <p>Your IP address is only used to compute a code that changes every day, so the same visit is not counted twice. The address is not stored. The data is not shared and not used for advertising.</p>
-    <p>When you download Cornetta, Federico also gets a Telegram message with the system (Mac or Windows), the version, the country and the site you came from. To avoid two messages for the same download, the service keeps a code computed from your IP address for one hour, then deletes it. The address is not stored and is not part of the message.</p>
+    <p>When you download Cornetta, Federico also gets a Telegram message with the system (Mac or Windows), the version, the country and the site you came from. To avoid two messages for the same download, the service keeps a code computed from your IP address (for IPv6, from the part that identifies your network) for one hour, then deletes it. The address is not stored and is not part of the message.</p>
 
     <h2>App usage data</h2>
     <p>Cornetta sends a short message when one of these things happens:</p>
     <ul>
-      <li>the app opens, or opens after an update;</li>
+      <li>the app opens, or opens after an update (the service keeps one launch per installation per day);</li>
       <li>a recording ends: successful or failed, and how long it lasted, in broad ranges (under a minute, 1 to 5 minutes, and so on);</li>
       <li>a transcription ends: successful or failed.</li>
     </ul>
@@ -67,7 +67,7 @@
     <p>The code that sends this data is public: <a href="https://github.com/stellakamikaze/cornetta/blob/master/Sources/Cornetta/Telemetry.swift">Mac</a>, <a href="https://github.com/stellakamikaze/cornetta/blob/master/windows/src/Cornetta.App/Telemetry.cs">Windows</a>, <a href="https://github.com/stellakamikaze/cornetta/blob/master/worker/src/index.js">the service that receives it</a>.</p>
 
     <h2>Feedback</h2>
-    <p>The Feedback button sends your message only when you press it. Name and email are optional, and technical diagnostics are sent only if you choose them. Every message also carries the Cornetta version, the system version, the processor type and the name of the microphone in use. The country is added by Cloudflare's network. Feedback is deleted automatically after 90 days. When feedback arrives, Federico also gets its text as a Telegram message, without the email address.</p>
+    <p>The Feedback button sends your message only when you press it. Name and email are optional, and technical diagnostics are sent only if you choose them. Every message also carries the Cornetta version, the system version, the processor type and the name of the microphone in use. The country is added by Cloudflare's network. To stop bursts of submissions, Cloudflare's network counts submissions for one minute under a code computed from your IP address: the address is not stored. Feedback is deleted automatically after 90 days. When feedback arrives, Federico also gets its text as a Telegram message, without the email address.</p>
 
     <h2>Updates</h2>
     <p>At launch and every 4 hours the app checks for a new version by downloading the version list from cornetta.stellakamikaze.org. The request carries only the installed version.</p>

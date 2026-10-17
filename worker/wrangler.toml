@@ -1,7 +1,8 @@
 name = "cornetta"
 main = "src/index.js"
 compatibility_date = "2026-09-01"
-workers_dev = true
+# Solo il dominio vero: niente cornetta.<account>.workers.dev, che aggirerebbe le regole della zona.
+workers_dev = false
 
 [assets]
 directory = "./public"
@@ -13,11 +14,25 @@ binding = "TELEMETRY"
 database_name = "cornetta-telemetria"
 database_id = "0fb4fa0e-9799-4cb9-b020-8936edbde3f8"
 
-# Limite per IP della telemetria: senza scritture in KV, che costano.
+# Limiti col binding ratelimits: senza scritture in KV, e la chiave è un hash dell'IPv4 o della /64.
+# Il periodo può essere solo 10 o 60 secondi, e i contatori valgono per località Cloudflare.
+# Telemetria: un'app manda pochi eventi (avvio, registrazione, trascrizione), 6 al minuto bastano.
 [[ratelimits]]
 name = "TELEMETRY_LIMIT"
 namespace_id = "1001"
-simple = { limit = 60, period = 60 }
+simple = { limit = 6, period = 60 }
+
+# Feedback: 2 invii al minuto per IPv4 o /64.
+[[ratelimits]]
+name = "FEEDBACK_LIMIT"
+namespace_id = "1002"
+simple = { limit = 2, period = 60 }
+
+# Avvisi Telegram: tetto fisso per tipo (chiavi «download» e «feedback»), 2 al minuto ciascuno.
+[[ratelimits]]
+name = "ALERT_LIMIT"
+namespace_id = "1003"
+simple = { limit = 2, period = 60 }
 
 # Ogni notte si cancellano gli eventi di telemetria più vecchi di 12 mesi.
 [triggers]

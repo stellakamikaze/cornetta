@@ -51,12 +51,12 @@
       <li>il paese, il browser e il sistema operativo.</li>
     </ul>
     <p>Il tuo indirizzo IP serve solo a calcolare un codice che cambia ogni giorno, per non contare due volte la stessa visita. L'indirizzo non viene salvato. I dati non vanno a terzi e non servono per pubblicità.</p>
-    <p>Quando scarichi Cornetta, Federico riceve anche un messaggio Telegram con il sistema (Mac o Windows), la versione, il paese e il sito da cui arrivi. Per non mandare due messaggi per lo stesso download, il servizio tiene per un'ora un codice calcolato dal tuo indirizzo IP, poi lo cancella. L'indirizzo non viene salvato e non entra nel messaggio.</p>
+    <p>Quando scarichi Cornetta, Federico riceve anche un messaggio Telegram con il sistema (Mac o Windows), la versione, il paese e il sito da cui arrivi. Per non mandare due messaggi per lo stesso download, il servizio tiene per un'ora un codice calcolato dal tuo indirizzo IP (per IPv6, dalla parte che indica la tua rete), poi lo cancella. L'indirizzo non viene salvato e non entra nel messaggio.</p>
 
     <h2>Dati di funzionamento dell'app</h2>
     <p>Cornetta manda un breve messaggio quando succedono queste cose:</p>
     <ul>
-      <li>l'app si apre, o si apre dopo un aggiornamento;</li>
+      <li>l'app si apre, o si apre dopo un aggiornamento (il servizio tiene un solo avvio al giorno per installazione);</li>
       <li>una registrazione finisce: riuscita o con errore, e quanto è durata, in fasce larghe (meno di un minuto, da 1 a 5 minuti, e così via);</li>
       <li>una trascrizione finisce: riuscita o con errore.</li>
     </ul>
@@ -67,7 +67,7 @@
     <p>Il codice che manda questi dati è pubblico: <a href="https://github.com/stellakamikaze/cornetta/blob/master/Sources/Cornetta/Telemetry.swift">Mac</a>, <a href="https://github.com/stellakamikaze/cornetta/blob/master/windows/src/Cornetta.App/Telemetry.cs">Windows</a>, <a href="https://github.com/stellakamikaze/cornetta/blob/master/worker/src/index.js">servizio che li riceve</a>.</p>
 
     <h2>Feedback</h2>
-    <p>Il pulsante Feedback manda il tuo messaggio solo quando lo premi. Nome ed email sono facoltativi, e anche la diagnostica tecnica parte solo se la scegli. Con il messaggio partono sempre la versione di Cornetta, la versione del sistema, il tipo di processore e il nome del microfono in uso. Il paese lo aggiunge la rete di Cloudflare. I feedback si cancellano da soli dopo 90 giorni. Quando arriva un feedback, Federico riceve il testo anche come messaggio Telegram, senza l'email.</p>
+    <p>Il pulsante Feedback manda il tuo messaggio solo quando lo premi. Nome ed email sono facoltativi, e anche la diagnostica tecnica parte solo se la scegli. Con il messaggio partono sempre la versione di Cornetta, la versione del sistema, il tipo di processore e il nome del microfono in uso. Il paese lo aggiunge la rete di Cloudflare. Contro gli invii a raffica la rete di Cloudflare conta per un minuto gli invii da un codice calcolato dal tuo indirizzo IP: l'indirizzo non viene salvato. I feedback si cancellano da soli dopo 90 giorni. Quando arriva un feedback, Federico riceve il testo anche come messaggio Telegram, senza l'email.</p>
 
     <h2>Aggiornamenti</h2>
     <p>All'avvio e ogni 4 ore l'app controlla se c'è una versione nuova, scaricando l'elenco delle versioni da cornetta.stellakamikaze.org. La richiesta contiene solo la versione installata.</p>

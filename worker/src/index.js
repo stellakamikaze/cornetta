@@ -2,8 +2,8 @@
 // e serve pagina, DMG e feed degli aggiornamenti.
 // I file statici stanno in ../public; qui passano solo /api/*, /js/p.js e /download*.
 
-const MAX_BODY = 100_000;
-const MAX_PER_HOUR = 20;
+// Tetto del corpo del feedback: un messaggio fino a 10.000 caratteri più la diagnostica (120 righe di log).
+const MAX_BODY = 48_000;
 const KEEP_SECONDS = 90 * 24 * 3600;   // i feedback si cancellano da soli dopo 90 giorni (scripts/feedback.py legge questa riga)
 
 const SITE = "cornetta.stellakamikaze.org";
@@ -81,8 +81,7 @@ export function validateTelemetry(body) {
 }
 
 async function saveTelemetry(request, env) {
-  const ip = request.headers.get("cf-connecting-ip") || "sconosciuto";
-  const { success } = await env.TELEMETRY_LIMIT.limit({ key: ip });
+  const { success } = await env.TELEMETRY_LIMIT.limit({ key: await addressKey("telemetria", request) });
   if (!success) return json({ ok: false, error: "Troppi eventi" }, 429);
   const raw = await request.text();
   if (raw.length > 2000) return json({ ok: false, error: "Evento troppo lungo" }, 413);
@@ -90,21 +89,73 @@ async function saveTelemetry(request, env) {
   try { body = JSON.parse(raw); } catch { return json({ ok: false, error: "JSON non valido" }, 400); }
   const e = validateTelemetry(body);
   if (!e) return json({ ok: false, error: "Evento non valido" }, 400);
+  // Un solo «avvio» per installazione al giorno: l'indice unico eventi_avvio_giorno (migration 0002)
+  // scarta i doppioni, e INSERT OR IGNORE li salta senza errore.
+  const ts = new Date().toISOString();
+  const day = e.evento === "avvio" ? ts.slice(0, 10) : null;
   try {
     await env.TELEMETRY.prepare(
-      "INSERT INTO eventi (ts, evento, piattaforma, versione, os, arch, paese, installazione, esito, codice, durata) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
-    ).bind(new Date().toISOString(), e.evento, e.piattaforma, e.versione, e.os, e.arch,
-      request.cf?.country || "", e.installazione, e.esito, e.codice, e.durata).run();
+      "INSERT OR IGNORE INTO eventi (ts, evento, piattaforma, versione, os, arch, paese, installazione, esito, codice, durata, giorno) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"
+    ).bind(ts, e.evento, e.piattaforma, e.versione, e.os, e.arch,
+      request.cf?.country || "", e.installazione, e.esito, e.codice, e.durata, day).run();
   } catch {
     return json({ ok: false, error: "Archivio non disponibile" }, 503);
   }
   return json({ ok: true });
 }
 
+// MARK: - Indirizzi
+// I limiti e il dedup degli avvisi usano l'IPv4 intero o la rete /64 di un IPv6: una casa o un server
+// ha una /64 intera e può cambiare indirizzo a ogni richiesta. La chiave è un hash: l'indirizzo non
+// esce dal Worker e non si salva da nessuna parte.
+
+function ipv6Groups(ip) {
+  const parts = ip.toLowerCase().split("%")[0].split("::");
+  if (parts.length > 2) return null;
+  const head = parts[0] ? parts[0].split(":") : [];
+  const tail = parts.length === 2 && parts[1] ? parts[1].split(":") : [];
+  const last = tail.length ? tail : head;
+  if (last.length && last[last.length - 1].includes(".")) {
+    const octets = last.pop().split(".").map(Number);
+    if (octets.length !== 4 || octets.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return null;
+    last.push(((octets[0] << 8) | octets[1]).toString(16), ((octets[2] << 8) | octets[3]).toString(16));
+  }
+  const missing = 8 - head.length - tail.length;
+  if (parts.length === 1 ? missing !== 0 : missing < 1) return null;
+  const groups = [...head, ...Array(parts.length === 2 ? missing : 0).fill("0"), ...tail];
+  if (groups.some((g) => !/^[0-9a-f]{1,4}$/.test(g))) return null;
+  return groups.map((g) => g.padStart(4, "0"));
+}
+
+/** IPv4 intero, IPv6 ridotto alla sua /64 («2001:0db8:0001:0002::/64»). */
+export function addressPrefix(ip) {
+  if (!ip || !ip.includes(":")) return ip || "";
+  const groups = ipv6Groups(ip);
+  if (!groups) return ip;
+  if (groups.slice(0, 5).every((g) => g === "0000") && groups[5] === "ffff") {
+    // IPv4 scritto come IPv6 (::ffff:a.b.c.d): conta come l'IPv4.
+    const n = parseInt(groups[6] + groups[7], 16);
+    return [n >>> 24, (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join(".");
+  }
+  return groups.slice(0, 4).join(":") + "::/64";
+}
+
+async function sha256Hex(text, bytes = 16) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].slice(0, bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Chiave per limiti e dedup: hash di uso e indirizzo (o /64), mai l'indirizzo in chiaro. */
+async function addressKey(use, request) {
+  return sha256Hex(`${use}:${addressPrefix(request.headers.get("cf-connecting-ip") || "")}`);
+}
+
 // MARK: - Avvisi su Telegram (@autoarturobot)
 // Un messaggio a Federico per ogni download di una persona e per ogni feedback. Secret TELEGRAM_TOKEN e
-// TELEGRAM_CHAT: senza, non parte niente. Bot e crawler non contano, e lo stesso visitatore non si
-// ripete per un'ora (Cache API, senza scritture in KV).
+// TELEGRAM_CHAT: senza, non parte niente. Bot e crawler non contano, e lo stesso visitatore (IPv4 o /64)
+// non si ripete per un'ora (Cache API, senza scritture in KV). Sopra il dedup c'è un tetto fisso per
+// tipo di avviso (ALERT_LIMIT, chiave «download» o «feedback»): una raffica da indirizzi tutti diversi
+// non intasa Telegram. Il binding conta per minuto e per località Cloudflare (la doc non offre di meglio).
 
 const BOT_AGENT = /bot|crawl|spider|slurp|preview|curl|wget|python|httpx|aiohttp|go-http|java\/|okhttp|headless|lighthouse|monitor|uptime|scan|fetch|axios|node|libwww|facebookexternalhit|whatsapp|telegram/i;
 
@@ -123,6 +174,18 @@ async function firstInAnHour(key) {
   return true;
 }
 
+/** Vero se c'è ancora posto per un avviso di questo tipo nel minuto. Senza binding non parte niente. */
+async function alertAllowed(env, kind) {
+  if (!env.ALERT_LIMIT) return false;
+  try {
+    const { success } = await env.ALERT_LIMIT.limit({ key: kind });
+    if (!success) console.log(`Avviso ${kind} saltato: tetto al minuto raggiunto`);
+    return success;
+  } catch {
+    return false;
+  }
+}
+
 async function telegram(env, text) {
   if (!env.TELEGRAM_TOKEN || !env.TELEGRAM_CHAT) return;
   try {
@@ -139,11 +202,9 @@ async function telegram(env, text) {
 }
 
 async function announceDownload(request, env, platform) {
-  if (!looksHuman(request)) return;
-  const ip = request.headers.get("cf-connecting-ip") || "";
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${platform}:${ip}`));
-  const key = [...new Uint8Array(digest)].slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
-  if (!(await firstInAnHour(key))) return;
+  if (request.method !== "GET" || !looksHuman(request)) return;
+  if (!(await firstInAnHour(await addressKey(`download:${platform}`, request)))) return;
+  if (!(await alertAllowed(env, "download"))) return;
   let version = "";
   try {
     const latest = await (await env.ASSETS.fetch(new Request(`https://${SITE}/downloads/latest.json`))).json();
@@ -189,6 +250,8 @@ async function plausibleEvent(request) {
 }
 
 async function countDownload(request, platform) {
+  // Un download è un GET di un browser: HEAD, bot, crawler e script non contano (come per gli avvisi).
+  if (request.method !== "GET" || !looksHuman(request)) return;
   const body = JSON.stringify({
     name: "Download",
     url: `https://${SITE}${new URL(request.url).pathname}`,
@@ -202,6 +265,11 @@ async function countDownload(request, platform) {
 async function saveFeedback(request, env, ctx) {
   const length = Number(request.headers.get("content-length") || 0);
   if (length > MAX_BODY) return json({ ok: false, error: "Messaggio troppo lungo" }, 413);
+
+  // Limite per IPv4 o /64, col binding FEEDBACK_LIMIT: regge alle raffiche in parallelo e non salva
+  // l'indirizzo (la chiave è un hash). Conta anche i tentativi non validi.
+  const { success } = await env.FEEDBACK_LIMIT.limit({ key: await addressKey("feedback", request) });
+  if (!success) return json({ ok: false, error: "Troppi invii, riprova tra qualche minuto" }, 429);
 
   const raw = await request.text();
   if (raw.length > MAX_BODY) return json({ ok: false, error: "Messaggio troppo lungo" }, 413);
@@ -220,18 +288,6 @@ async function saveFeedback(request, env, ctx) {
     return json({ ok: false, error: "Scrivi un messaggio (massimo 10.000 caratteri)" }, 400);
   }
 
-  // Limite per indirizzo IP: protegge l'archivio da invii a raffica.
-  const ip = request.headers.get("cf-connecting-ip") || "sconosciuto";
-  const hour = new Date().toISOString().slice(0, 13);
-  const rateKey = `rl:${ip}:${hour}`;
-  try {
-    const count = Number((await env.FEEDBACK.get(rateKey)) || 0);
-    if (count >= MAX_PER_HOUR) return json({ ok: false, error: "Troppi invii, riprova tra un'ora" }, 429);
-    await env.FEEDBACK.put(rateKey, String(count + 1), { expirationTtl: 3600 });
-  } catch {
-    return json({ ok: false, error: "Archivio non disponibile, riprova tra poco" }, 503);
-  }
-
   const now = new Date().toISOString();
   const id = `fb:${now}:${crypto.randomUUID().slice(0, 8)}`;
   const record = {
@@ -242,7 +298,7 @@ async function saveFeedback(request, env, ctx) {
     name: typeof body.name === "string" ? clean(body.name).trim().slice(0, 100) : "",
     platform: body.platform === "windows" ? "windows" : "macos",
     app: pick(body.app, ["version", "build", "macOS", "os", "arch", "microphone"]),
-    diagnostics: typeof body.diagnostics === "string" ? clean(body.diagnostics).slice(0, 60_000) : "",
+    diagnostics: typeof body.diagnostics === "string" ? clean(body.diagnostics).slice(0, MAX_BODY) : "",
     country: request.cf?.country || "",
   };
   try {
@@ -253,12 +309,12 @@ async function saveFeedback(request, env, ctx) {
   } catch {
     return json({ ok: false, error: "Archivio non disponibile, riprova tra poco" }, 503);
   }
-  ctx.waitUntil(telegram(env, [
+  ctx.waitUntil(alertAllowed(env, "feedback").then((allowed) => allowed && telegram(env, [
     `Cornetta: feedback da ${record.platform === "windows" ? "Windows" : "Mac"} ${record.app.version || "?"}${record.country ? ", " + record.country : ""}`,
     `«${message.slice(0, 600)}${message.length > 600 ? "…" : ""}»`,
     record.email ? "Ha lasciato l'email per la risposta." : "",
     `scripts/feedback.py show ${id}`,
-  ].filter(Boolean).join("\n")));
+  ].filter(Boolean).join("\n"))));
   return json({ ok: true, id });
 }
 
