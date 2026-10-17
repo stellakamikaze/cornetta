@@ -12,7 +12,7 @@ git fetch -q origin
 
 python3 scripts/sync-published.py
 python3 scripts/sync-published.py --check
-(cd worker && npx -y wrangler@4 deploy)
+(cd worker && npx -y wrangler@4.147.0 deploy)
 
 # Verifica sul servizio vero: il sito serve ancora ogni file che i feed e /download citano.
 # Subito dopo il deploy la rete di Cloudflare può servire ancora la versione precedente: si riprova.

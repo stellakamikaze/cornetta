@@ -33,6 +33,7 @@ scripts/feedback.py · scripts/telemetria.py      # feedback e dati di funzionam
 - NON usare i dispositivi predefiniti generali su Windows: le chiamate passano da quelli del ruolo Comunicazioni.
 - NON fidarti di selftest e `--render-ui` per l'avvio su Windows: non passano dal costruttore di `TrayApp`. La CI prova l'app vera con `--smoke-tray`.
 - NON aspettarti che una build di prova Windows (0.0.<run>) scarichi il feed pubblicato: Velopack rifiuta una versione più bassa.
+- NON lasciare wrangler o una GitHub Action sulla sola versione principale (4, v7): wrangler ha una versione esatta, uguale in tutti gli script, e le GitHub Actions uno SHA col commento della versione (`scripts/tests/test_pins.py`). Per aggiornarle scegli una versione uscita da almeno due settimane.
 - NON pubblicare il Worker prima di applicare una migration nuova di `worker/migrations/`: la telemetria risponde 503 finché la colonna manca (`docs/SERVIZIO.md`).
 - NON verificare un deploy al primo colpo: per qualche secondo Cloudflare può servire i file vecchi o un 404. Gli script riprovano sei volte.
 - NON compilare l'app col Command Line Tools 27 senza Xcode: manca il plugin delle macro di SwiftUI («SwiftUIMacros not found»). Core e test compilano.

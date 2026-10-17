@@ -52,7 +52,7 @@ echo "/download/windows /windows/CornettaSetup.exe 302" >> "$TMP/redirects"
 cp "$TMP/redirects" worker/public/_redirects
 
 python3 scripts/sync-published.py --check
-(cd worker && npx -y wrangler@4 deploy)
+(cd worker && npx -y wrangler@4.147.0 deploy)
 
 # Verifica sul servizio vero: feed con la versione nuova e installer identico a quello del CI.
 # Subito dopo il deploy la rete di Cloudflare può servire ancora i file vecchi: si riprova.

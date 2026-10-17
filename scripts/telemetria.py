@@ -16,7 +16,7 @@ REMOTE = "--locale" not in sys.argv
 
 
 def query(sql):
-    cmd = ["npx", "-y", "wrangler@4", "d1", "execute", DATABASE, "--json", "--command", sql,
+    cmd = ["npx", "-y", "wrangler@4.147.0", "d1", "execute", DATABASE, "--json", "--command", sql,
            "--remote" if REMOTE else "--local"]
     result = subprocess.run(cmd, cwd=WORKER_DIR, capture_output=True, text=True)
     if result.returncode != 0:

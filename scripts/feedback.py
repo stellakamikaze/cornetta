@@ -32,7 +32,7 @@ def keep_seconds():
 
 
 def wrangler(*args, capture=True):
-    cmd = ["npx", "-y", "wrangler@4", "kv", *args, "--namespace-id", NAMESPACE, "--remote"]
+    cmd = ["npx", "-y", "wrangler@4.147.0", "kv", *args, "--namespace-id", NAMESPACE, "--remote"]
     for attempt in range(3):
         result = subprocess.run(cmd, cwd=WORKER_DIR, capture_output=capture, text=True)
         if result.returncode == 0 or "fetch failed" not in (result.stderr or ""):

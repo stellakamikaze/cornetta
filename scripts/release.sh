@@ -56,7 +56,7 @@ PY
 sed -i '' -E "s/\"softwareVersion\": \"[^\"]+\"/\"softwareVersion\": \"$VERSION\"/" worker/public/index.html worker/public/en/index.html
 
 python3 scripts/sync-published.py --check
-(cd worker && npx -y wrangler@4 deploy)
+(cd worker && npx -y wrangler@4.147.0 deploy)
 
 # Verifica sul servizio vero: feed con la versione nuova e DMG identico a quello locale.
 # Subito dopo il deploy la rete di Cloudflare può servire ancora la versione precedente: si riprova.

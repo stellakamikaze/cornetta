@@ -40,16 +40,16 @@ Nella tabella `eventi` resta un solo `avvio` per installazione al giorno (indice
 Una migration nuova in `worker/migrations/` va applicata **prima** del deploy del Worker che la usa, altrimenti la telemetria risponde 503:
 
 ```bash
-cd worker && npx wrangler@4 d1 migrations apply cornetta-telemetria --remote
+cd worker && npx wrangler@4.147.0 d1 migrations apply cornetta-telemetria --remote
 ```
 
 Ricreare da zero (i dati vecchi non tornano):
 
 ```bash
 cd worker
-npx wrangler@4 d1 create cornetta-telemetria          # copia il nuovo database_id in wrangler.toml
-npx wrangler@4 d1 migrations apply cornetta-telemetria --remote
-npx wrangler@4 kv namespace create FEEDBACK           # copia il nuovo id in wrangler.toml
+npx wrangler@4.147.0 d1 create cornetta-telemetria          # copia il nuovo database_id in wrangler.toml
+npx wrangler@4.147.0 d1 migrations apply cornetta-telemetria --remote
+npx wrangler@4.147.0 kv namespace create FEEDBACK           # copia il nuovo id in wrangler.toml
 ```
 
 Il rate limit non va creato: basta il blocco `[[ratelimits]]` in `wrangler.toml`.
@@ -62,10 +62,10 @@ Il rate limit non va creato: basta il blocco `[[ratelimits]]` in `wrangler.toml`
 | `TELEGRAM_CHAT` | chat che riceve gli avvisi | nessun avviso, il resto funziona |
 
 ```bash
-cd worker && npx wrangler@4 secret put TELEGRAM_TOKEN   # incolla il valore quando lo chiede
+cd worker && npx wrangler@4.147.0 secret put TELEGRAM_TOKEN   # incolla il valore quando lo chiede
 ```
 
-Prova: `npx wrangler@4 tail cornetta` mentre scarichi la pagina da un browser vero. Nel log compare «Telegram: messaggio N inviato». Lo stesso IPv4 o la stessa rete IPv6 /64 manda un solo avviso l'ora per piattaforma, e sopra ogni tipo di avviso c'è il tetto di `ALERT_LIMIT` («Avviso download saltato» nel log).
+Prova: `npx wrangler@4.147.0 tail cornetta` mentre scarichi la pagina da un browser vero. Nel log compare «Telegram: messaggio N inviato». Lo stesso IPv4 o la stessa rete IPv6 /64 manda un solo avviso l'ora per piattaforma, e sopra ogni tipo di avviso c'è il tetto di `ALERT_LIMIT` («Avviso download saltato» nel log).
 
 ## File pubblicati persi
 
