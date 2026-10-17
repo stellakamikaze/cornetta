@@ -121,7 +121,9 @@ namespace Cornetta.App
             lines.Add("");
             lines.Add("--- ultime righe del log ---");
             lines.AddRange(Diagnostics.Tail(120));
-            return string.Join(Environment.NewLine, lines);
+            // Il nome utente nei percorsi non serve a capire un guasto (come sul Mac).
+            return PathPrivacy.Anonymize(string.Join(Environment.NewLine, lines),
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
         }
     }
 

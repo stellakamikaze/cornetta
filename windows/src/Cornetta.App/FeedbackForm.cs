@@ -110,7 +110,8 @@ namespace Cornetta.App
             diagnosticsCheck = new CheckBox
             {
                 Text = "Allega informazioni tecniche (versione, dispositivi audio, log). Nessun audio.",
-                Checked = true,
+                // Spenta come sul Mac: la diagnostica parte solo se la scegli (pagina /privacy/).
+                Checked = FeedbackPayload.DiagnosticsByDefault,
                 AutoSize = false,
                 Width = width,
                 Margin = new Padding(0, Px(12), 0, 0),
@@ -135,6 +136,8 @@ namespace Cornetta.App
                 Margin = new Padding(0, Px(6), 0, 0),
                 AccessibleName = "Informazioni tecniche che vengono inviate",
             };
+
+            UpdateDiagnosticsVisibility();
 
             errorLabel = WrapLabel("", width, Font);
             errorLabel.ForeColor = Color.FromArgb(0xC4, 0x2B, 0x1C);

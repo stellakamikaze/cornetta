@@ -25,6 +25,9 @@ namespace Cornetta.Core
     {
         public const string Platform = "windows";
 
+        /// <summary>La casella «Allega informazioni tecniche» parte spenta, come sul Mac: la diagnostica la sceglie chi scrive.</summary>
+        public const bool DiagnosticsByDefault = false;
+
         public static string ToJson(string message, string name, string email, string? diagnostics, FeedbackAppInfo app)
         {
             var sb = new StringBuilder();
