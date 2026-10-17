@@ -24,7 +24,7 @@ scripts/feedback.py · scripts/telemetria.py      # feedback e dati di funzionam
 ## Errori comuni
 
 - NON pubblicare con `wrangler deploy` a mano: toglie dal sito DMG e feed Windows, che non stanno in git. Usa `scripts/deploy-site.sh`.
-- NON rigenerare la chiave EdDSA di Sparkle né il certificato «Cornetta Self-Signed»: le app installate rifiutano gli aggiornamenti o perdono i permessi. Si ripristinano dal backup.
+- NON rigenerare la chiave EdDSA di Sparkle, la chiave del feed Windows né il certificato «Cornetta Self-Signed»: le app installate rifiutano gli aggiornamenti o perdono i permessi. Si ripristinano dal backup.
 - NON attivare il runtime rinforzato col certificato locale: senza Team ID Sparkle non si carica. Serve solo con un Developer ID.
 - NON mettere `kAudioAggregateDeviceTapAutoStartKey` a true: su macOS 26 l'aggregate col tap non parte (zero callback).
 - NON leggere il JSON delle trascrizioni col decoder di default: le date sono ISO 8601 e tutto risulta «Da trascrivere». Usa `Transcript.decoder`.

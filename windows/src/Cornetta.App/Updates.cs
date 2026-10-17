@@ -1,5 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
+using System.Net;
+using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -32,15 +36,25 @@ namespace Cornetta.App
     /// <summary>
     /// Aggiornamenti da remoto con Velopack: il feed sta in https://cornetta.stellakamikaze.org/windows/
     /// (releases.win.json più i pacchetti .nupkg). Controllo all'avvio e ogni 4 ore.
+    /// Il feed è firmato (releases.win.json.sig, vedi FeedSignature): senza firma valida l'app non aggiorna.
     /// </summary>
     internal sealed class UpdateService
     {
+        private const string FeedFile = "releases.win.json";
+        private static readonly HttpClient Client = CreateClient();
         private readonly UpdateManager? manager;
+        private readonly string feed;
         private UpdateInfo? update;
+
+        private static HttpClient CreateClient()
+        {
+            ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
+            return new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+        }
 
         public UpdateService()
         {
-            string feed = Settings.FeedOverride ?? AppInfo.UpdateFeedUrl;
+            feed = Settings.FeedOverride ?? AppInfo.UpdateFeedUrl;
             try
             {
                 manager = new UpdateManager(feed);
@@ -71,6 +85,13 @@ namespace Cornetta.App
             {
                 var info = await manager.CheckForUpdatesAsync().ConfigureAwait(true);
                 if (info == null) return UpdateCheck.UpToDate;
+                string? refusal = await SignedFeedRefusal(info).ConfigureAwait(true);
+                if (refusal != null)
+                {
+                    Diagnostics.Log("Aggiornamento " + info.TargetFullRelease.Version + " rifiutato: " + refusal);
+                    update = null;
+                    return UpdateCheck.Failed;
+                }
                 bool isNew = update == null || update.TargetFullRelease.Version.ToString() != info.TargetFullRelease.Version.ToString();
                 update = info;
                 if (isNew) Diagnostics.Log("Aggiornamento trovato: " + info.TargetFullRelease.Version);
@@ -87,10 +108,70 @@ namespace Cornetta.App
         public async Task InstallAsync(Action<int>? progress, Action beforeRestart)
         {
             if (manager == null || update == null) return;
+            // Di nuovo subito prima di scaricare: dal controllo possono essere passate ore.
+            string? refusal = await SignedFeedRefusal(update).ConfigureAwait(true);
+            if (refusal != null)
+            {
+                Diagnostics.Log("Aggiornamento " + update.TargetFullRelease.Version + " rifiutato: " + refusal);
+                update = null;
+                throw new InvalidOperationException("Feed degli aggiornamenti senza firma valida: " + refusal);
+            }
             await manager.DownloadUpdatesAsync(update, progress).ConfigureAwait(true);
             Diagnostics.Log("Installo l'aggiornamento " + update.TargetFullRelease.Version);
             beforeRestart();
             manager.ApplyUpdatesAndRestart(update.TargetFullRelease);
+        }
+
+        /// <summary>
+        /// Null se il feed firmato copre ogni pacchetto che Velopack scaricherà (completo e delta), altrimenti il motivo.
+        /// Velopack poi controlla l'hash del file scaricato con quello del pacchetto, che qui risulta firmato.
+        /// </summary>
+        private async Task<string?> SignedFeedRefusal(UpdateInfo info)
+        {
+            byte[] feedBytes;
+            string signature;
+            try
+            {
+                feedBytes = await ReadFeedFile(FeedFile).ConfigureAwait(true);
+                signature = System.Text.Encoding.ASCII.GetString(await ReadFeedFile(FeedFile + ".sig").ConfigureAwait(true));
+            }
+            catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is WebException || ex is IOException || ex is UnauthorizedAccessException)
+            {
+                return "firma del feed non scaricata (" + ex.Message + ")";
+            }
+            string? problem = FeedSignature.Verify(feedBytes, signature, AppInfo.UpdateFeedPublicKey);
+            if (problem != null) return problem;
+            var signed = FeedSignature.ParseAssets(feedBytes);
+            if (signed == null) return "feed firmato illeggibile";
+            var wanted = new List<VelopackAsset> { info.TargetFullRelease };
+            if (info.DeltasToTarget != null) wanted.AddRange(info.DeltasToTarget);
+            foreach (var asset in wanted)
+            {
+                problem = FeedSignature.Covers(signed, new FeedAsset
+                {
+                    FileName = asset.FileName ?? "",
+                    Sha1 = asset.SHA1 ?? "",
+                    Sha256 = asset.SHA256 ?? "",
+                    Size = asset.Size,
+                });
+                if (problem != null) return problem;
+            }
+            return null;
+        }
+
+        /// <summary>Un file accanto al feed: in rete, oppure nella cartella di FeedOverride per le prove.</summary>
+        private async Task<byte[]> ReadFeedFile(string name)
+        {
+            if (feed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || feed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                string url = feed.TrimEnd('/') + "/" + name;
+                using (var response = await Client.GetAsync(url).ConfigureAwait(true))
+                {
+                    if (!response.IsSuccessStatusCode) throw new HttpRequestException("HTTP " + (int)response.StatusCode + " per " + name);
+                    return await response.Content.ReadAsByteArrayAsync().ConfigureAwait(true);
+                }
+            }
+            return File.ReadAllBytes(Path.Combine(feed, name));
         }
     }
 

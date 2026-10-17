@@ -75,9 +75,18 @@ Se il sito perde DMG o feed e nessuna macchina li ha più:
 2. Installer Windows: `windows/tools/publish.sh X.Y.Z` riscarica dalla CI l'ultima versione e la ripubblica.
 3. `latest.json` lo riscrivono `release.sh` e `publish.sh`. I delta li rigenera `generate_appcast` alla release successiva.
 
-## Chiavi di firma (solo Mac)
+## Chiavi di firma
 
 - **Chiave EdDSA di Sparkle**: firma il feed degli aggiornamenti. La privata sta nel portachiavi del Mac che pubblica, account `cornetta`. La pubblica è in `Resources/Info.plist` (`SUPublicEDKey`). Se si perde, le app installate rifiutano ogni aggiornamento futuro: va ripristinata dal backup, mai rigenerata. Ripristino: `.build/artifacts/sparkle/Sparkle/bin/generate_keys --account cornetta -f <file>`. Esporta il backup con `-x <file>`.
+- **Chiave del feed Windows** (ECDSA P-256): firma `windows/releases.win.json` in `releases.win.json.sig`. L'app Windows verifica la firma prima di scaricare un aggiornamento (`FeedSignature.cs`) e senza firma valida non si aggiorna. Ed25519 non c'è in .NET Framework 4.8: ECDSA P-256 sì, senza librerie in più. La privata sta in un file PEM fuori dal repo, indicato da `CORNETTA_FEED_KEY_FILE`; `windows/tools/sign-feed.py` la legge dal file, si ferma se il file sta nel repo o è leggibile da altri, e confronta la sua chiave pubblica con quella dell'app. Se si perde, le app installate rifiutano ogni aggiornamento futuro: va ripristinata dal backup, mai rigenerata. Va creata **una volta sola**, prima della prima versione Windows con la verifica:
+
+  ```bash
+  mkdir -p ~/.config/cornetta && (umask 077; openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out ~/.config/cornetta/feed-windows.pem)
+  export CORNETTA_FEED_KEY_FILE=~/.config/cornetta/feed-windows.pem   # anche nel profilo della shell
+  windows/tools/sign-feed.py --public-key                              # stampa solo la chiave pubblica
+  ```
+
+  La chiave pubblica va in `windows/src/Cornetta.App/AppInfo.cs`, `UpdateFeedPublicKey = "<128 cifre>"` al posto di `FeedSignature.Placeholder`: finché c'è il segnaposto, la CI dei tag si ferma. Il file PEM va nel gestore password (voce «Cornetta – chiave feed Windows»), poi `windows/tools/sign-feed.py --check-key` deve dire «chiave del feed pronta».
 - **Certificato «Cornetta Self-Signed»**: firma l'app. Sta nel portachiavi login. `release.sh` si ferma se la firma è diversa. macOS lega i permessi (microfono, audio di sistema) al certificato: con un certificato nuovo chi aggiorna deve concederli di nuovo. Va ripristinato dal backup `.p12`, mai rifatto.
 
 ## Distribuzione

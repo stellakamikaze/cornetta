@@ -65,6 +65,14 @@ jobs:
           "version=$v" >> $env:GITHUB_OUTPUT
           Write-Host "Versione: $v"
 
+      - name: La chiave del feed è impostata (solo tag)
+        # Un'app col segnaposto rifiuta ogni feed: dopo l'installazione non si aggiornerebbe più.
+        if: startsWith(github.ref, 'refs/tags/win-v')
+        run: |
+          if (Select-String -Path src/Cornetta.App/AppInfo.cs -SimpleMatch -Quiet -Pattern "UpdateFeedPublicKey = FeedSignature.Placeholder") {
+            throw "UpdateFeedPublicKey è ancora il segnaposto: docs/SERVIZIO.md, «Chiave del feed Windows»"
+          }
+
       - name: Restore
         run: dotnet restore Cornetta.Windows.sln
 

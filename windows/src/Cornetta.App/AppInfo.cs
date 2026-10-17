@@ -17,6 +17,13 @@ namespace Cornetta.App
         public const string FeedbackUrl = ServiceUrl + "/api/feedback";
         public const string UpdateFeedUrl = ServiceUrl + "/windows/";
 
+        /// <summary>
+        /// Chiave pubblica ECDSA P-256 che firma il feed (releases.win.json.sig), in esadecimale: X||Y, 128 cifre.
+        /// Come si genera e dove sta la privata: docs/SERVIZIO.md, «Chiave del feed Windows». windows/tools/sign-feed.py
+        /// legge questa riga e la CI dei tag si ferma finché vale FeedSignature.Placeholder.
+        /// </summary>
+        public const string UpdateFeedPublicKey = FeedSignature.Placeholder;
+
         public static string Version
         {
             get

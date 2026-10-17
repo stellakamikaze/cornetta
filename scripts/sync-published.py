@@ -52,6 +52,9 @@ def published_files():
     for url in re.findall(r'url="([^"]+)"', appcast):
         if url.startswith(BASE_URL + "/downloads/"):
             required.add(url[len(BASE_URL) + 1:])
+    # La firma del feed è obbligatoria appena il sito la serve: un deploy senza farebbe rifiutare gli aggiornamenti.
+    if fetch("windows/releases.win.json.sig") is not None:
+        required.add("windows/releases.win.json.sig")
     feed = fetch("windows/releases.win.json")
     if feed:
         for asset in json.loads(feed.decode("utf-8-sig"))["Assets"]:

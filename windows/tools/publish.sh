@@ -4,12 +4,16 @@
 #   windows/tools/publish.sh 0.3.0                        # scarica gli artifact e li mette online
 # Le app installate vedono la versione nuova al prossimo controllo (all'avvio e ogni 4 ore).
 #
+# Firma il feed (releases.win.json.sig) con la chiave indicata da CORNETTA_FEED_KEY_FILE: senza, si ferma
+# subito. Le app dalla versione con la verifica rifiutano un feed senza firma valida (docs/SERVIZIO.md).
+#
 # wrangler deploy pubblica TUTTA la cartella worker/public: lo script riparte dai file pubblicati
 # (scripts/sync-published.py), così non toglie dal sito i DMG del Mac se la macchina non li ha.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 VERSION="${1:?Uso: windows/tools/publish.sh VERSIONE (es. 0.3.0)}"
+python3 windows/tools/sign-feed.py --check-key
 git fetch -q --tags origin
 [ -z "$(git rev-list HEAD..@{u})" ] || { echo "Il repo è indietro rispetto a GitHub: git pull prima di pubblicare."; exit 1; }
 python3 scripts/sync-published.py
@@ -29,6 +33,7 @@ grep -q "\"$VERSION\"" "$TMP/upload/releases.win.json" || { echo "releases.win.j
 # I pacchetti delle versioni precedenti restano: servono a chi aggiorna da lì.
 mkdir -p "$DEST"
 cp "$TMP"/upload/* "$DEST"/
+python3 windows/tools/sign-feed.py "$DEST/releases.win.json"
 ls -la "$DEST"
 
 # La homepage propone Windows solo se latest.json ha la voce «windows» (worker/public/assets/site.js).
@@ -56,11 +61,16 @@ for attempt in 1 2 3 4 5 6; do
   sleep 10
   FEED_OK=$(curl -fsS "$BASE_URL/windows/releases.win.json" | grep -c "\"$VERSION\"" || true)
   REMOTE=$(curl -fsSL "$BASE_URL/windows/CornettaSetup.exe" | shasum -a 256 | cut -d' ' -f1 || true)
-  [ "$FEED_OK" -ge 1 ] && [ "$REMOTE" = "$LOCAL" ] && break
+  SIG_OK=0
+  curl -fsS -o "$TMP/feed.json" "$BASE_URL/windows/releases.win.json" \
+    && curl -fsS -o "$TMP/feed.sig" "$BASE_URL/windows/releases.win.json.sig" \
+    && python3 windows/tools/sign-feed.py --verify "$TMP/feed.json" "$TMP/feed.sig" >/dev/null 2>&1 && SIG_OK=1
+  [ "$FEED_OK" -ge 1 ] && [ "$REMOTE" = "$LOCAL" ] && [ "$SIG_OK" = 1 ] && break
   echo "Verifica $attempt/6: il servizio non è ancora allineato, riprovo."
 done
 [ "$FEED_OK" -ge 1 ] || { echo "Il feed pubblicato non contiene $VERSION"; exit 1; }
 [ "$REMOTE" = "$LOCAL" ] || { echo "Il CornettaSetup.exe scaricato non coincide con quello del CI"; exit 1; }
+[ "$SIG_OK" = 1 ] || { echo "Il feed pubblicato non ha una firma valida (releases.win.json.sig)"; exit 1; }
 curl -fsS "$BASE_URL/downloads/latest.json" | grep -q '"windows"' || { echo "latest.json pubblicato senza la voce windows"; exit 1; }
 VIA_REDIRECT=$(curl -fsSL "$BASE_URL/download/windows" | shasum -a 256 | cut -d' ' -f1)
 [ "$VIA_REDIRECT" = "$LOCAL" ] || { echo "/download/windows non porta all'installer nuovo"; exit 1; }
