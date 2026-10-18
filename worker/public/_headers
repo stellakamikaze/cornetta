@@ -35,14 +35,3 @@
 /windows/releases.win.json.sig
   Content-Type: text/plain; charset=utf-8
   Cache-Control: no-cache
-
-# Pagine HTML: no-transform impedisce a Cloudflare di iniettare lo script anti-bot
-# (JavaScript Detections, sul piano Free non si spegne), che la CSP bloccava.
-/
-  Cache-Control: public, max-age=0, must-revalidate, no-transform
-/en/
-  Cache-Control: public, max-age=0, must-revalidate, no-transform
-/privacy/
-  Cache-Control: public, max-age=0, must-revalidate, no-transform
-/en/privacy/
-  Cache-Control: public, max-age=0, must-revalidate, no-transform
