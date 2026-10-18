@@ -1,6 +1,6 @@
 // Worker di Cornetta: riceve feedback e telemetria dalle app, conta visite e download,
 // e serve pagina, DMG e feed degli aggiornamenti.
-// I file statici stanno in ../public; qui passano solo /api/*, /js/p.js e /download*.
+// I file statici stanno in ../public; qui passano solo /api/*, /js/p.js, /download* e le pagine HTML.
 
 // Tetto del corpo del feedback: un messaggio fino a 10.000 caratteri più la diagnostica (120 righe di log).
 const MAX_BODY = 48_000;
@@ -9,6 +9,25 @@ const KEEP_SECONDS = 90 * 24 * 3600;   // i feedback si cancellano da soli dopo 
 const SITE = "cornetta.stellakamikaze.org";
 const PLAUSIBLE = "https://analytics.stellakamikaze.org";
 const TELEMETRY_KEEP_DAYS = 365;
+
+// Le pagine HTML escono con no-transform: così Cloudflare non inietta lo script
+// anti-bot (JavaScript Detections, che sul piano Free non si spegne) e la CSP
+// resta script-src 'self'. no-transform toglie anche la compressione dell'edge,
+// quindi il gzip lo fa il Worker. Una pagina nuova va qui e in run_worker_first.
+const PAGINE = new Set(["/", "/en/", "/privacy/", "/en/privacy/"]);
+
+async function pagina(request, env) {
+  const r = await env.ASSETS.fetch(request);
+  if (r.status !== 200 || !(r.headers.get("content-type") || "").startsWith("text/html")) return r;
+  const headers = new Headers(r.headers);
+  headers.set("cache-control", "public, max-age=0, must-revalidate, no-transform");
+  headers.append("vary", "accept-encoding");
+  const accetta = request.cf?.clientAcceptEncoding ?? request.headers.get("accept-encoding") ?? "";
+  if (request.method === "HEAD" || !/\bgzip\b/.test(accetta)) return new Response(r.body, { status: 200, headers });
+  headers.set("content-encoding", "gzip");
+  headers.delete("content-length");
+  return new Response(r.body.pipeThrough(new CompressionStream("gzip")), { status: 200, headers, encodeBody: "manual" });
+}
 
 export default {
   async fetch(request, env, ctx) {
@@ -41,6 +60,7 @@ export default {
     }
     if (url.pathname === "/api/health") return json({ ok: true });
     if (url.pathname.startsWith("/api/")) return json({ ok: false, error: "Non trovato" }, 404);
+    if (PAGINE.has(url.pathname)) return pagina(request, env);
     return env.ASSETS.fetch(request);
   },
 

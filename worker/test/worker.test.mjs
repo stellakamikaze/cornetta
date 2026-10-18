@@ -14,6 +14,7 @@ const MODULE = process.env.CORNETTA_WORKER || join(WORKER_DIR, "src", "index.js"
 const TOML = process.env.CORNETTA_WRANGLER_TOML || join(WORKER_DIR, "wrangler.toml");
 const worker = (await import(pathToFileURL(MODULE).href)).default;
 
+const PAGINA_FINTA = "<!doctype html><title>Cornetta</title>" + "<p>registra le chiamate</p>".repeat(200);
 const BROWSER = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
 const INSTALL = "0f8fad5b-d9cb-469f-a165-70867728950e";
 
@@ -90,6 +91,7 @@ function setup() {
       async fetch(request) {
         const url = typeof request === "string" ? request : request.url;
         if (url.endsWith("/downloads/latest.json")) return Response.json({ mac: { version: "0.3.4" }, windows: { version: "0.3.0" } });
+        if (url.endsWith("/")) return new Response(PAGINA_FINTA, { headers: { "content-type": "text/html; charset=utf-8" } });
         return new Response("file");
       },
     },
@@ -267,4 +269,30 @@ test("addressPrefix: IPv4 intero, IPv6 alla /64", async () => {
   assert.equal(addressPrefix("64:ff9b::198.51.100.4"), "0064:ff9b:0000:0000::/64");
   assert.equal(addressPrefix("non-un-indirizzo:::"), "non-un-indirizzo:::", "un valore strano resta com'è");
   assert.equal(addressPrefix(""), "");
+});
+
+// MARK: - Pagine HTML
+
+test("pagine: no-transform e gzip fatto dal Worker", async () => {
+  const { env } = setup();
+  for (const path of ["/", "/en/", "/privacy/", "/en/privacy/"]) {
+    const r = await call(env, { path, headers: { "accept-encoding": "gzip, br" } });
+    assert.match(r.headers.get("cache-control"), /no-transform/, path);
+    assert.equal(r.headers.get("content-encoding"), "gzip", path);
+    const testo = await new Response(r.body.pipeThrough(new DecompressionStream("gzip"))).text();
+    assert.equal(testo, PAGINA_FINTA, path);
+  }
+});
+
+test("pagine: senza gzip nella richiesta il corpo esce in chiaro, sempre con no-transform", async () => {
+  const { env } = setup();
+  const r = await call(env, { path: "/" });
+  assert.equal(r.headers.get("content-encoding"), null);
+  assert.match(r.headers.get("cache-control"), /no-transform/);
+  assert.equal(await r.text(), PAGINA_FINTA);
+});
+
+test("pagine: wrangler.toml manda al Worker tutte le pagine di PAGINE", () => {
+  const toml = readFileSync(TOML, "utf8");
+  for (const path of ["/", "/en/", "/privacy/", "/en/privacy/"]) assert.match(toml, new RegExp(`"${path.replace(/\//g, "\\/")}"`));
 });
