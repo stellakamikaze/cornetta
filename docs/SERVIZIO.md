@@ -21,8 +21,9 @@ Se Telegram o Plausible non rispondono il sito funziona lo stesso: gli avvisi e 
 ## Worker e dominio
 
 - Configurazione: `worker/wrangler.toml`. Dominio `cornetta.stellakamikaze.org` come custom domain: la zona `stellakamikaze.org` deve stare sullo stesso account Cloudflare.
-- Pubblicare le pagine: `scripts/deploy-site.sh`. Mai `wrangler deploy` a mano: pubblica tutta `worker/public`, e `downloads/` e `windows/` non stanno in git. Lo script li riscarica dal sito con `scripts/sync-published.py`, si ferma se ne manca uno (`--check`) e dopo il deploy controlla che il sito li serva ancora (`--verify`).
-- Pubblicare una versione: `scripts/release.sh` (Mac, solo da un Mac col certificato) e `windows/tools/publish.sh` (Windows, dopo la CI). Partono anche loro dai file pubblicati.
+- Pubblicare le pagine: `scripts/deploy-site.sh`. Mai `wrangler deploy` a mano: pubblica tutta `worker/public`, e `downloads/` e `windows/` non stanno in git. Lo script li riscarica dal sito con `scripts/sync-published.py`, si ferma se ne manca uno (`--check`) e dopo il deploy controlla che il sito li serva ancora, uguali a quelli locali (`--verify`).
+- Prima di tutto i tre script passano da `scripts/lib/guardia.sh`, e si fermano se: il repo ha modifiche o file non tracciati; HEAD è staccato o il ramo non ha upstream; il ramo è indietro o ha commit non pushati; falliscono i test del Worker (con un Node 22.13 o più recente, cercato anche in Homebrew e nvm) o degli script; una migration di `worker/migrations/` non è applicata al D1.
+- Pubblicare una versione: `scripts/release.sh` (Mac, solo da un Mac col certificato) e `windows/tools/publish.sh` (Windows, dopo la CI). Partono anche loro dai file pubblicati, e rifiutano una versione più vecchia di quella in `latest.json`. `publish.sh` pusha il suo commit di `_redirects` e allega alla release `win-vX.Y.Z` tutti i file del feed: è il loro backup. Se `release.sh` si ferma dopo il deploy, stampa i passi da finire a mano.
 
 ## Dati
 
@@ -31,13 +32,14 @@ Se Telegram o Plausible non rispondono il sito funziona lo stesso: gli avvisi e 
 | D1 `cornetta-telemetria` | `TELEMETRY` | eventi di funzionamento, tabella `eventi` | 12 mesi, cron notturno `17 3 * * *` | `scripts/telemetria.py` |
 | KV `FEEDBACK` | `FEEDBACK` | feedback dall'app | 90 giorni (`KEEP_SECONDS`) | `scripts/feedback.py` |
 | Rate limit | `TELEMETRY_LIMIT` | 6 eventi al minuto per IPv4 o rete IPv6 /64 | — | — |
+| Rate limit | `TELEMETRY48_LIMIT` | 30 eventi al minuto per rete IPv6 /48 (namespace 3004) | — | — |
 | Rate limit | `FEEDBACK_LIMIT` | 2 feedback al minuto per IPv4 o /64 | — | — |
 | Rate limit | `ALERT_LIMIT` | 2 avvisi Telegram al minuto per tipo (download, feedback) | — | — |
 
 I rate limit usano come chiave un hash dell'indirizzo: l'IP non si salva. Contano per minuto e per località Cloudflare.
 Nella tabella `eventi` resta un solo `avvio` per installazione al giorno (indice unico della migration 0002).
 
-Una migration nuova in `worker/migrations/` va applicata **prima** del deploy del Worker che la usa, altrimenti la telemetria risponde 503:
+Una migration nuova in `worker/migrations/` va applicata **prima** del deploy del Worker che la usa, altrimenti la telemetria risponde 503. Gli script di deploy confrontano i file con la tabella `d1_migrations` e si fermano con questo comando:
 
 ```bash
 cd worker && npx wrangler@4.147.0 d1 migrations apply cornetta-telemetria --remote
@@ -69,11 +71,12 @@ Prova: `npx wrangler@4.147.0 tail cornetta` mentre scarichi la pagina da un brow
 
 ## File pubblicati persi
 
-Se il sito perde DMG o feed e nessuna macchina li ha più:
+Se il sito perde DMG o file Windows (per esempio dopo un `wrangler deploy` a mano), `sync-published.py` dice quale file manca. Se una macchina lo ha ancora in `worker/public`, basta `scripts/deploy-site.sh` da lì: i file solo in locale tornano online. Per i file senza versione nel nome (`latest.json`, feed Windows con la sua `.sig`, `RELEASES`, `assets.win.json`, `CornettaSetup.exe`) la sync invece si ferma, e con lei i tre script di deploy: la copia locale può essere più vecchia di quella persa. Controlla che sia l'ultima pubblicata (la versione in `latest.json` e nel feed, l'hash dell'installer nella release GitHub) o recuperala come sotto. Poi lancia a mano `python3 scripts/sync-published.py --recover`, che conferma le copie locali, e di nuovo lo script di deploy. La conferma vale solo per quelle copie: se il file locale cambia, la sync si ferma di nuovo. Se il feed Windows torna dalla copia locale, torna con la sua firma locale. I file mancanti si recuperano dalle release GitHub, poi `--recover` se servono file senza versione nel nome, e `scripts/deploy-site.sh`:
 
-1. DMG: `gh release download vX.Y.Z` per ogni versione, in `worker/public/downloads/`.
-2. Installer Windows: `windows/tools/publish.sh X.Y.Z` riscarica dalla CI l'ultima versione e la ripubblica.
-3. `latest.json` lo riscrivono `release.sh` e `publish.sh`. I delta li rigenera `generate_appcast` alla release successiva.
+1. DMG: `gh release download vX.Y.Z -p '*.dmg' -D worker/public/downloads` per ogni versione citata dall'appcast o da `/download`.
+2. File Windows: ogni release `win-vX.Y.Z` contiene anche i file senza versione nel nome, quindi scaricarne più di una nella stessa cartella va in conflitto. Per ogni versione citata dal feed scarica solo i pacchetti: `gh release download win-vX.Y.Z -p '*.nupkg' -D worker/public/windows`. Feed, `.sig`, `RELEASES`, `assets.win.json` e `CornettaSetup.exe` vengono solo dalla release dell'ultima versione citata dal feed, sopra le copie locali: `gh release download win-vX.Y.Z -p 'releases.win.json*' -p RELEASES -p assets.win.json -p CornettaSetup.exe -D worker/public/windows --clobber`. Le release fino a `win-v0.3.0` hanno solo l'installer: i nupkg e il feed stanno nell'artifact della CI (`gh run download <run> -n cornetta-windows-X.Y.Z`, poi `upload/*`), che scade 90 giorni dopo la run. Un feed senza `.sig` si firma con `windows/tools/sign-feed.py worker/public/windows/releases.win.json`.
+3. I delta del Mac sono facoltativi: senza, Sparkle scarica il DMG intero. Li rigenera `generate_appcast` alla release successiva.
+4. `latest.json` si copia da una macchina che ha fatto un deploy. Altrimenti si riscrive a mano nel formato di `release.sh` e `publish.sh`.
 
 ## Chiavi di firma
 

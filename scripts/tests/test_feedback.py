@@ -1,13 +1,16 @@
-"""scripts/feedback.py: la issue pubblica porta solo il messaggio, show delimita i dati non fidati (#3503).
+"""scripts/feedback.py: la issue pubblica porta solo il messaggio, show delimita i dati non fidati (#3503),
+un numero corto non cancella un feedback a caso, la scadenza ignora l'ora legale.
 
   python3 -m unittest discover -s scripts/tests
 CORNETTA_FEEDBACK_PY punta a un'altra versione dello script, per la prova sul codice vecchio.
 """
+import calendar
 import contextlib
 import importlib.util
 import io
 import os
 import sys
+import time
 import unittest
 from unittest import mock
 
@@ -89,6 +92,71 @@ class FeedbackScriptTests(unittest.TestCase):
         real = ends[-1]
         self.assertNotEqual(real, "--- fine dati non fidati ---", "il delimitatore deve avere un codice che il messaggio non conosce")
         self.assertEqual(sum(1 for line in ends if line == real), 1)
+
+
+    def test_short_number_out_of_the_list_is_not_a_key_suffix(self):
+        # Con tre feedback, «delete 5» cancellava il primo la cui chiave finisce per 5.
+        fb = load()
+        items = [{"name": f"fb:2026-10-1{i}T10:00:00.000Z:abcd123{c}"} for i, c in enumerate("045")]
+        with self.assertRaises(SystemExit):
+            fb.resolve("5", items)
+        self.assertIs(fb.resolve("3", items), items[2])
+        self.assertIs(fb.resolve("abcd1235", items), items[2])
+
+    def test_ambiguous_suffix_is_refused(self):
+        fb = load()
+        items = [{"name": "fb:2026-10-10T10:00:00.000Z:abcd1234"}, {"name": "fb:2026-10-11T10:00:00.000Z:abcd1234"}]
+        with self.assertRaises(SystemExit):
+            fb.resolve("abcd1234", items)
+        self.assertIs(fb.resolve(items[1]["name"], items), items[1])
+
+    def test_delete_asks_before_deleting(self):
+        fb = load()
+        calls = []
+        with mock.patch.object(fb, "keys", return_value=[ITEM]), mock.patch.object(fb, "get", return_value=RECORD), \
+                mock.patch.object(fb, "wrangler", side_effect=lambda *a: calls.append(a)), \
+                mock.patch("builtins.input", return_value="n"), mock.patch.object(sys, "argv", ["feedback.py", "delete", "1"]), \
+                contextlib.redirect_stdout(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                fb.main()
+        self.assertEqual(calls, [])
+        # Senza terminale (una pipe, un agente) input() alza EOFError: vale N, senza traceback.
+        with mock.patch.object(fb, "keys", return_value=[ITEM]), mock.patch.object(fb, "get", return_value=RECORD), \
+                mock.patch.object(fb, "wrangler", side_effect=lambda *a: calls.append(a)), \
+                mock.patch("builtins.input", side_effect=EOFError), mock.patch.object(sys, "argv", ["feedback.py", "delete", "1"]), \
+                contextlib.redirect_stdout(io.StringIO()):
+            with self.assertRaises(SystemExit) as stop:
+                fb.main()
+        self.assertEqual((calls, stop.exception.code), ([], "Non cancellato."))
+        with mock.patch.object(fb, "keys", return_value=[ITEM]), mock.patch.object(fb, "get", return_value=RECORD), \
+                mock.patch.object(fb, "wrangler", side_effect=lambda *a: calls.append(a)), \
+                mock.patch.object(sys, "argv", ["feedback.py", "delete", "1", "--yes"]), contextlib.redirect_stdout(io.StringIO()):
+            fb.main()
+        self.assertEqual(calls, [("key", "delete", ITEM["name"])])
+
+    # time.tzset esiste solo su Unix: su Windows (la guardia lancia questi test anche da Git Bash) il test si salta.
+    @unittest.skipUnless(hasattr(time, "tzset"), "time.tzset solo su Unix")
+    def test_ttl_ignores_daylight_saving_time(self):
+        fb = load()
+        received = "2026-07-01T10:00:00.000Z"
+        now = calendar.timegm((2026, 7, 1, 10, 0, 0)) + 1000
+        calls = []
+        old_tz = os.environ.get("TZ")
+        os.environ["TZ"] = "Europe/Rome"
+        time.tzset()
+        try:
+            with mock.patch.object(fb, "keep_seconds", return_value=90 * 24 * 3600), \
+                    mock.patch.object(fb, "wrangler", side_effect=lambda *a: calls.append(a)), \
+                    mock.patch.object(fb.time, "time", return_value=now):
+                fb.set_status(ITEM, dict(RECORD, receivedAt=received), "gestito")
+        finally:
+            if old_tz is None:
+                del os.environ["TZ"]
+            else:
+                os.environ["TZ"] = old_tz
+            time.tzset()
+        args = calls[0]
+        self.assertEqual(int(args[args.index("--ttl") + 1]), 90 * 24 * 3600 - 1000)
 
 
 if __name__ == "__main__":

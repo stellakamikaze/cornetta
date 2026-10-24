@@ -1,14 +1,14 @@
 #!/bin/bash
 # Pubblica le pagine e il Worker senza toccare le versioni: da qualunque macchina, Mac o Windows.
 #   scripts/deploy-site.sh
-# Parte dal repo allineato a GitHub e dai file pubblicati (scripts/sync-published.py), così un deploy
-# da una macchina che non ha fatto le release non toglie dal sito DMG, delta o feed Windows.
+# Parte dal repo pulito e allineato a GitHub, coi test verdi (scripts/lib/guardia.sh), e dai file pubblicati
+# (scripts/sync-published.py), così un deploy da una macchina che non ha fatto le release non toglie dal sito
+# DMG, delta o feed Windows.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-git diff --quiet && git diff --cached --quiet || { echo "Ci sono modifiche non committate: committa prima di pubblicare."; exit 1; }
-git fetch -q origin
-[ -z "$(git rev-list HEAD..@{u})" ] || { echo "Il repo è indietro rispetto a GitHub: git pull prima di pubblicare."; exit 1; }
+source scripts/lib/guardia.sh
+guardia
 
 python3 scripts/sync-published.py
 python3 scripts/sync-published.py --check

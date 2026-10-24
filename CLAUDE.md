@@ -30,7 +30,7 @@ scripts/feedback.py · scripts/telemetria.py      # feedback e dati di funzionam
 - NON leggere il JSON delle trascrizioni col decoder di default: le date sono ISO 8601 e tutto risulta «Da trascrivere». Usa `Transcript.decoder`.
 - NON aprire una finestra in `applicationDidFinishLaunching` di un'app MenuBarExtra: non arriva sullo schermo. Aprila dopo, con `asyncAfter` di 0,5 s.
 - NON premere i pulsanti di Sparkle con `click` di System Events nelle prove: blocca osascript. Usa `perform action "AXPress"`.
-- NON usare i dispositivi predefiniti generali su Windows: le chiamate passano da quelli del ruolo Comunicazioni.
+- NON usare i predefiniti generali su Windows al posto di quelli del ruolo Comunicazioni: le chiamate passano da lì. Il microfono generale serve solo se manca quello di Comunicazioni; l'uscita generale si ascolta in aggiunta, mai al suo posto.
 - NON fidarti di selftest e `--render-ui` per l'avvio su Windows: non passano dal costruttore di `TrayApp`. La CI prova l'app vera con `--smoke-tray`.
 - NON aspettarti che una build di prova Windows (0.0.<run>) scarichi il feed pubblicato: Velopack rifiuta una versione più bassa.
 - NON lasciare wrangler o una GitHub Action sulla sola versione principale (4, v7): wrangler ha una versione esatta, uguale in tutti gli script, e le GitHub Actions uno SHA col commento della versione (`scripts/tests/test_pins.py`). Per aggiornarle scegli una versione uscita da almeno due settimane.

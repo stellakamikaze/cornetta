@@ -144,7 +144,7 @@ Le app installate vedono la versione nuova all'avvio e ogni 4 ore.
 ### Limiti noti su Windows
 
 - L'installer non è firmato: SmartScreen chiede «Ulteriori informazioni → Esegui comunque».
-- Cornetta registra il microfono e l'uscita che Windows assegna alle comunicazioni. Se l'app di chiamata è impostata a mano su un altro dispositivo, quel dispositivo non entra nel file.
+- Cornetta registra il microfono che Windows assegna alle comunicazioni e ascolta sia l'uscita delle comunicazioni sia quella generale. Musica, notifiche e altri suoni sull'uscita generale entrano quindi nel file. Un'app di chiamata impostata a mano su un terzo dispositivo resta fuori.
 
 ## Pubblicare il sito
 
@@ -152,7 +152,7 @@ Le app installate vedono la versione nuova all'avvio e ogni 4 ore.
 scripts/deploy-site.sh       # pagine e Worker, senza versioni nuove: da Mac o da Windows
 ```
 
-`wrangler deploy` pubblica tutta `worker/public`, ma DMG, delta, `latest.json` e feed Windows non stanno nel repo. Per questo `scripts/deploy-site.sh`, `scripts/release.sh` e `windows/tools/publish.sh` partono da `scripts/sync-published.py`, che scarica dal sito i file pubblicati. Prima del deploy `--check` ferma tutto se in locale manca un file che il sito serve, dopo il deploy `--verify` controlla che il sito li serva ancora. Una release del Mac non toglie così Windows dal sito, e viceversa.
+`wrangler deploy` pubblica tutta `worker/public`, ma DMG, delta, `latest.json` e feed Windows non stanno nel repo. Per questo `scripts/deploy-site.sh`, `scripts/release.sh` e `windows/tools/publish.sh` partono da `scripts/sync-published.py`, che scarica dal sito i file pubblicati. Prima del deploy `--check` ferma tutto se in locale manca un file che il sito serve, dopo il deploy `--verify` controlla che il sito li serva ancora, uguali a quelli locali. Una release del Mac non toglie così Windows dal sito, e viceversa. Prima ancora `scripts/lib/guardia.sh` ferma i tre script se il repo non è pulito e allineato a GitHub, se un test del Worker o degli script fallisce, o se una migration D1 non è applicata.
 
 ## Notarizzazione Apple (installazione senza «Apri comunque»)
 

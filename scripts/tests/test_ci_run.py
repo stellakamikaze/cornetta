@@ -41,7 +41,8 @@ class CiRunTests(unittest.TestCase):
     def run_ci(self, runs, **env):
         with open(self.env["FAKE_GH_RUNS"], "w", encoding="utf-8") as f:
             json.dump(runs, f)
-        return subprocess.run([CI_RUN, "0.4.0"], cwd=self.repo, env=dict(self.env, **env), capture_output=True, text=True)
+        # «bash»: su Windows Python non esegue uno script .sh (la guardia lancia questi test anche da Git Bash).
+        return subprocess.run(["bash", CI_RUN, "0.4.0"], cwd=self.repo, env=dict(self.env, **env), capture_output=True, text=True)
 
     def run_of(self, run_id, event, sha):
         return {"databaseId": run_id, "event": event, "headSha": sha, "headBranch": TAG, "conclusion": "success"}

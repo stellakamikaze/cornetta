@@ -5,9 +5,12 @@
   scripts/feedback.py show N|ID       un feedback completo, con la diagnostica
   scripts/feedback.py issue N|ID      apre una issue GitHub e segna il feedback
   scripts/feedback.py done N|ID       segna il feedback come gestito
-  scripts/feedback.py delete N|ID     cancella il feedback
+  scripts/feedback.py delete N|ID     cancella il feedback, dopo la conferma (--yes per non chiederla)
   scripts/feedback.py --all           l'elenco include i feedback gestiti
+
+N è il numero dell'elenco; ID è la chiave intera o le sue ultime 8 cifre o più.
 """
+import calendar
 import json
 import os
 import re
@@ -51,12 +54,17 @@ def keys():
 
 
 def resolve(ref, items):
-    if ref.isdigit() and 1 <= int(ref) <= len(items):
-        return items[int(ref) - 1]
-    for item in items:
-        if item["name"] == ref or item["name"].endswith(ref):
-            return item
-    sys.exit(f"Feedback non trovato: {ref}")
+    # Un numero corto è solo il numero dell'elenco: come suffisso colpirebbe una chiave a caso su 16.
+    if ref.isdigit() and len(ref) < 8:
+        if 1 <= int(ref) <= len(items):
+            return items[int(ref) - 1]
+        sys.exit(f"Feedback non trovato: {ref}")
+    found = [item for item in items if item["name"] == ref or (len(ref) >= 8 and item["name"].endswith(ref))]
+    if len(found) > 1:
+        sys.exit(f"Più feedback finiscono con {ref}: usa la chiave intera")
+    if not found:
+        sys.exit(f"Feedback non trovato: {ref}")
+    return found[0]
 
 
 def get(name):
@@ -94,7 +102,7 @@ def set_status(item, record, status):
         path = f.name
     try:
         # La scadenza dalla ricezione resta anche dopo il cambio di stato.
-        received = time.mktime(time.strptime(record["receivedAt"][:19], "%Y-%m-%dT%H:%M:%S")) - time.timezone
+        received = calendar.timegm(time.strptime(record["receivedAt"][:19], "%Y-%m-%dT%H:%M:%S"))
         ttl = max(60, int(received + keep_seconds() - time.time()))
         wrangler("key", "put", item["name"], "--path", path, "--metadata", json.dumps(metadata), "--ttl", str(ttl))
     finally:
@@ -102,7 +110,7 @@ def set_status(item, record, status):
 
 
 def main():
-    args = [a for a in sys.argv[1:] if a != "--all"]
+    args = [a for a in sys.argv[1:] if a not in ("--all", "--yes")]
     show_all = "--all" in sys.argv
     items = keys()
 
@@ -151,6 +159,15 @@ def main():
         set_status(item, record, "gestito")
         print("Segnato come gestito.")
     elif command == "delete":
+        # La cancellazione non si annulla, e i numeri scalano se un feedback scade dopo l'elenco: prima si guarda.
+        print(f"{safe(record['receivedAt'])}  {safe((record['message'].splitlines() or [''])[0][:80])}")
+        if "--yes" not in sys.argv:
+            try:
+                answer = input("Cancellare questo feedback? [s/N] ")
+            except EOFError:  # stdin non interattivo (una pipe, un agente): vale N
+                answer = ""
+            if answer.strip().lower() != "s":
+                sys.exit("Non cancellato.")
         wrangler("key", "delete", item["name"])
         print("Cancellato.")
     else:

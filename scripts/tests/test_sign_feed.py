@@ -79,9 +79,10 @@ class SignFeedTests(unittest.TestCase):
         env = dict(self.env)
         del env["CORNETTA_FEED_KEY_FILE"]
         self.assertIn("manca CORNETTA_FEED_KEY_FILE", run("--check-key", env=env).stderr)
-        os.chmod(self.key, 0o644)
-        self.assertIn("chmod 600", run("--check-key", env=self.env).stderr)
-        os.chmod(self.key, 0o600)
+        if os.name == "posix":  # su Windows i permessi POSIX non ci sono, e sign-feed.py non li controlla
+            os.chmod(self.key, 0o644)
+            self.assertIn("chmod 600", run("--check-key", env=self.env).stderr)
+            os.chmod(self.key, 0o600)
         inside = tempfile.mkdtemp(dir=REPO)
         try:
             shutil.copy(self.key, os.path.join(inside, "feed.pem"))

@@ -7,16 +7,19 @@
 # Firma il feed (releases.win.json.sig) con la chiave indicata da CORNETTA_FEED_KEY_FILE: senza, si ferma
 # subito. Le app dalla versione con la verifica rifiutano un feed senza firma valida (docs/SERVIZIO.md).
 #
-# wrangler deploy pubblica TUTTA la cartella worker/public: lo script riparte dai file pubblicati
-# (scripts/sync-published.py), così non toglie dal sito i DMG del Mac se la macchina non li ha.
+# wrangler deploy pubblica TUTTA la cartella worker/public: lo script parte dal repo pulito e allineato a
+# GitHub, coi test verdi (scripts/lib/guardia.sh), e dai file pubblicati (scripts/sync-published.py), così
+# non toglie dal sito i DMG del Mac se la macchina non li ha.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 VERSION="${1:?Uso: windows/tools/publish.sh VERSIONE (es. 0.3.0)}"
 python3 windows/tools/sign-feed.py --check-key
-git fetch -q --tags origin
-[ -z "$(git rev-list HEAD..@{u})" ] || { echo "Il repo è indietro rispetto a GitHub: git pull prima di pubblicare."; exit 1; }
+source scripts/lib/guardia.sh
+guardia
 python3 scripts/sync-published.py
+# Mai sopra una versione più recente: le installazioni nuove riceverebbero quella vecchia. Uguale sì, per riprendere.
+python3 scripts/sync-published.py --not-older windows "$VERSION"
 BASE_URL="https://cornetta.stellakamikaze.org"
 DEST="worker/public/windows"
 ARTIFACT="cornetta-windows-$VERSION"
@@ -65,23 +68,33 @@ for attempt in 1 2 3 4 5 6; do
   curl -fsS -o "$TMP/feed.json" "$BASE_URL/windows/releases.win.json" \
     && curl -fsS -o "$TMP/feed.sig" "$BASE_URL/windows/releases.win.json.sig" \
     && python3 windows/tools/sign-feed.py --verify "$TMP/feed.json" "$TMP/feed.sig" >/dev/null 2>&1 && SIG_OK=1
-  [ "$FEED_OK" -ge 1 ] && [ "$REMOTE" = "$LOCAL" ] && [ "$SIG_OK" = 1 ] && break
+  LATEST_OK=$(curl -fsS "$BASE_URL/downloads/latest.json" | grep -c '"windows"' || true)
+  VIA_REDIRECT=$(curl -fsSL "$BASE_URL/download/windows" | shasum -a 256 | cut -d' ' -f1 || true)
+  [ "$FEED_OK" -ge 1 ] && [ "$REMOTE" = "$LOCAL" ] && [ "$SIG_OK" = 1 ] && [ "$LATEST_OK" -ge 1 ] \
+    && [ "$VIA_REDIRECT" = "$LOCAL" ] && python3 scripts/sync-published.py --verify >/dev/null && break
   echo "Verifica $attempt/6: il servizio non è ancora allineato, riprovo."
 done
 [ "$FEED_OK" -ge 1 ] || { echo "Il feed pubblicato non contiene $VERSION"; exit 1; }
 [ "$REMOTE" = "$LOCAL" ] || { echo "Il CornettaSetup.exe scaricato non coincide con quello del CI"; exit 1; }
 [ "$SIG_OK" = 1 ] || { echo "Il feed pubblicato non ha una firma valida (releases.win.json.sig)"; exit 1; }
-curl -fsS "$BASE_URL/downloads/latest.json" | grep -q '"windows"' || { echo "latest.json pubblicato senza la voce windows"; exit 1; }
-VIA_REDIRECT=$(curl -fsSL "$BASE_URL/download/windows" | shasum -a 256 | cut -d' ' -f1)
+[ "$LATEST_OK" -ge 1 ] || { echo "latest.json pubblicato senza la voce windows"; exit 1; }
 [ "$VIA_REDIRECT" = "$LOCAL" ] || { echo "/download/windows non porta all'installer nuovo"; exit 1; }
 python3 scripts/sync-published.py --verify
 
-git add worker/public/_redirects
-git diff --cached --quiet || git commit -q -m "Windows $VERSION: /download/windows"
+# Solo _redirects, e subito su GitHub: un deploy dall'altra macchina parte da git e deve avere la riga.
+git diff --quiet -- worker/public/_redirects || {
+  git commit -q -m "Windows $VERSION: /download/windows" -- worker/public/_redirects
+  git push -q origin HEAD
+}
 
-if ! gh release view "win-v$VERSION" >/dev/null 2>&1; then
+# La release è anche il backup dei file pubblicati: l'artifact della CI scade dopo 90 giorni, e un tag
+# ricompilato non dà gli stessi byte (lo SHA-256 nel feed non tornerebbe).
+FILES=("$TMP"/upload/* "$DEST/releases.win.json.sig")
+if gh release view "win-v$VERSION" >/dev/null 2>&1; then
+  gh release upload "win-v$VERSION" "${FILES[@]}" --clobber
+else
   # --latest=false: la release in evidenza su GitHub resta quella del Mac, la versione principale.
-  gh release create "win-v$VERSION" "$DEST/CornettaSetup.exe" --title "Cornetta $VERSION per Windows" --latest=false \
+  gh release create "win-v$VERSION" "${FILES[@]}" --title "Cornetta $VERSION per Windows" --latest=false \
     --notes "Installer per utente, senza permessi di amministratore. Si aggiorna da solo." >/dev/null
 fi
 echo "Cornetta $VERSION per Windows pubblicata: $BASE_URL/windows/CornettaSetup.exe"
