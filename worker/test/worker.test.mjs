@@ -60,6 +60,27 @@ function fakeD1() {
   };
 }
 
+// Le pagine HTML vere, cercate su disco: ogni .html di public che comincia con <!doctype html.
+// index.html vale la sua cartella con «/» finale, nome.html vale «/nome». I frammenti delle note
+// di versione (downloads/, fuori da git) cominciano con <h2> e restano fuori.
+function pagineSuDisco(dir = join(WORKER_DIR, "public"), base = "/") {
+  const out = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...pagineSuDisco(path, `${base}${entry.name}/`));
+    else if (entry.name.endsWith(".html") && /^<!doctype html/i.test(readFileSync(path, "utf8"))) {
+      out.push(entry.name === "index.html" ? base : base + entry.name.slice(0, -5));
+    }
+  }
+  return out;
+}
+
+function runWorkerFirst() {
+  return JSON.parse(readFileSync(TOML, "utf8").match(/^run_worker_first\s*=\s*(\[.*\])/m)[1]);
+}
+
+const PAGINE = new Set(pagineSuDisco());
+
 function setup() {
   const limits = ratelimitConfig();
   const sent = { telegram: [], plausible: [] };
@@ -91,7 +112,9 @@ function setup() {
       async fetch(request) {
         const url = typeof request === "string" ? request : request.url;
         if (url.endsWith("/downloads/latest.json")) return Response.json({ mac: { version: "0.3.4" }, windows: { version: "0.3.0" } });
-        if (url.endsWith("/")) return new Response(PAGINA_FINTA, { headers: { "content-type": "text/html; charset=utf-8" } });
+        const path = new URL(url).pathname;
+        if (PAGINE.has(path)) return new Response(PAGINA_FINTA, { headers: { "content-type": "text/html; charset=utf-8" } });
+        if (path === "/manca/") return new Response("<!doctype html><title>404</title>", { status: 404, headers: { "content-type": "text/html" } });
         return new Response("file");
       },
     },
@@ -143,6 +166,14 @@ test("download: stessa rete IPv6 /64 = un solo avviso", async () => {
   assert.equal(sent.telegram.length, 1);
   await call(env, { path: "/download/windows", ip: "2001:db8:1:3::1" });
   assert.equal(sent.telegram.length, 2, "un'altra /64 è un altro visitatore");
+  assert.match(sent.telegram[0], /Windows 0\.3\.0/);
+});
+
+test("download: l'avviso del Mac porta la versione di latest.json", async () => {
+  const { env, sent } = setup();
+  await call(env, { path: "/download" });
+  assert.equal(sent.telegram.length, 1);
+  assert.match(sent.telegram[0], /Mac 0\.3\.4/);
 });
 
 test("download: tetto globale agli avvisi anche da indirizzi tutti diversi", async () => {
@@ -203,6 +234,44 @@ test("feedback: corpo oltre MAX_BODY rifiutato", async () => {
   assert.equal(response.status, 413);
 });
 
+test("feedback: un'emoji sul limite dei 600 caratteri non lascia surrogati soli", async () => {
+  const { env, sent } = setup();
+  const emoji = "\u{1F600}";   // due unità UTF-16, la 600 e la 601
+  const message = "a".repeat(599) + emoji + "b".repeat(50);
+  const r = await call(env, { path: "/api/feedback", method: "POST", body: feedback(message) });
+  assert.equal(r.status, 200);
+  const solo = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+  assert.equal(sent.telegram.length, 1);
+  assert.ok(!solo.test(sent.telegram[0]), "surrogato solo nell'avviso Telegram");
+  assert.ok(sent.telegram[0].includes(emoji + "…»"), "l'emoji resta intera prima dei puntini");
+  const short = "a".repeat(119) + emoji;
+  await call(env, { path: "/api/feedback", method: "POST", ip: "203.0.113.8", body: feedback(short + "b") });
+  assert.equal(env.FEEDBACK.puts.at(-1).options.metadata.preview, short + "…", "anteprima a 120 caratteri veri");
+});
+
+test("corpo senza Content-Length: lettura fermata al tetto, poi 413", async () => {
+  for (const path of ["/api/feedback", "/api/t", "/api/e"]) {
+    const { env } = setup();
+    let chunks = 0;
+    const stream = new ReadableStream({
+      pull(controller) {
+        chunks++;
+        if (chunks > 1000) controller.close();   // 16 MB in tutto
+        else controller.enqueue(new Uint8Array(16_384).fill(120));
+      },
+    });
+    const request = new Request("https://cornetta.stellakamikaze.org" + path, {
+      method: "POST", body: stream, duplex: "half",
+      headers: { "cf-connecting-ip": "203.0.113.7", "content-type": "application/json" },
+    });
+    assert.equal(request.headers.get("content-length"), null);
+    Object.defineProperty(request, "cf", { value: { country: "IT" } });
+    const r = await worker.fetch(request, env, { waitUntil() {} });
+    assert.equal(r.status, 413, path);
+    assert.ok(chunks < 10, `${path}: letti ${chunks} blocchi da 16 KB oltre il tetto`);
+  }
+});
+
 test("feedback: la diagnostica normale passa ancora", async () => {
   const { env } = setup();
   const normal = { ...feedback(), diagnostics: "riga di log abbastanza lunga per sembrare vera\n".repeat(400) };
@@ -246,6 +315,22 @@ test("telemetria: limite per /64, non per singolo indirizzo", async () => {
   assert.ok(limiters.TELEMETRY_LIMIT.keys.every((k) => !k.includes("2001")), "chiave del rate limit con l'IP in chiaro");
 });
 
+test("telemetria: una /48 IPv6 che cambia /64 a ogni evento si ferma al limite per /48", async () => {
+  const { env, limits, limiters } = setup();
+  assert.ok(limits.TELEMETRY48_LIMIT, "manca TELEMETRY48_LIMIT");
+  const statuses = [];
+  for (let i = 1; i <= limits.TELEMETRY48_LIMIT.limit + 1; i++) {
+    const r = await call(env, { path: "/api/t", method: "POST", ip: `2001:db8:5:${i.toString(16)}::1`, body: event("registrazione") });
+    statuses.push(r.status);
+  }
+  assert.equal(statuses.filter((s) => s === 200).length, limits.TELEMETRY48_LIMIT.limit);
+  assert.equal(statuses.at(-1), 429);
+  assert.ok(limiters.TELEMETRY48_LIMIT.keys.every((k) => !k.includes("2001")), "chiave del rate limit con l'IP in chiaro");
+  const r = await call(env, { path: "/api/t", method: "POST", ip: "198.51.100.20", body: event("registrazione") });
+  assert.equal(r.status, 200);
+  assert.equal(limiters.TELEMETRY48_LIMIT.keys.length, limits.TELEMETRY48_LIMIT.limit + 1, "un IPv4 non passa dal limite per /48");
+});
+
 test("migration 0002 si applica anche con avvii doppi già salvati", () => {
   const db = new DatabaseSync(":memory:");
   const dir = join(WORKER_DIR, "migrations");
@@ -267,6 +352,8 @@ test("addressPrefix: IPv4 intero, IPv6 alla /64", async () => {
   assert.equal(addressPrefix("2001:db8::"), "2001:0db8:0000:0000::/64");
   assert.equal(addressPrefix("::ffff:198.51.100.4"), "198.51.100.4");
   assert.equal(addressPrefix("64:ff9b::198.51.100.4"), "0064:ff9b:0000:0000::/64");
+  assert.equal(addressPrefix("2001:db8:1:2::1", 48), "2001:0db8:0001::/48");
+  assert.equal(addressPrefix("203.0.113.7", 48), "203.0.113.7");
   assert.equal(addressPrefix("non-un-indirizzo:::"), "non-un-indirizzo:::", "un valore strano resta com'è");
   assert.equal(addressPrefix(""), "");
 });
@@ -275,7 +362,8 @@ test("addressPrefix: IPv4 intero, IPv6 alla /64", async () => {
 
 test("pagine: no-transform e gzip fatto dal Worker", async () => {
   const { env } = setup();
-  for (const path of ["/", "/en/", "/privacy/", "/en/privacy/"]) {
+  assert.ok(PAGINE.size >= 4, `pagine trovate su disco: ${[...PAGINE]}`);
+  for (const path of PAGINE) {
     const r = await call(env, { path, headers: { "accept-encoding": "gzip, br" } });
     assert.match(r.headers.get("cache-control"), /no-transform/, path);
     assert.equal(r.headers.get("content-encoding"), "gzip", path);
@@ -292,7 +380,22 @@ test("pagine: senza gzip nella richiesta il corpo esce in chiaro, sempre con no-
   assert.equal(await r.text(), PAGINA_FINTA);
 });
 
-test("pagine: wrangler.toml manda al Worker tutte le pagine di PAGINE", () => {
-  const toml = readFileSync(TOML, "utf8");
-  for (const path of ["/", "/en/", "/privacy/", "/en/privacy/"]) assert.match(toml, new RegExp(`"${path.replace(/\//g, "\\/")}"`));
+test("pagine: un 404 e un file che non è HTML escono com'erano", async () => {
+  const { env } = setup();
+  const missing = await call(env, { path: "/manca/", headers: { "accept-encoding": "gzip" } });
+  assert.equal(missing.status, 404);
+  assert.equal(missing.headers.get("content-encoding"), null);
+  const file = await call(env, { path: "/img/call.webp", headers: { "accept-encoding": "gzip" } });
+  assert.equal(file.headers.get("content-encoding"), null);
+  assert.equal(await file.text(), "file");
+});
+
+test("pagine: ogni pagina su disco sta in run_worker_first, e ogni cartella lì ha la sua pagina", () => {
+  // Una pagina fuori da run_worker_first la serve l'edge senza no-transform: lo script anti-bot
+  // entra e la CSP lo blocca.
+  const first = runWorkerFirst();
+  for (const path of PAGINE) assert.ok(first.includes(path), `${path} manca da run_worker_first`);
+  for (const path of first.filter((p) => p.endsWith("/") && !p.includes("*"))) {
+    assert.ok(PAGINE.has(path), `${path} sta in run_worker_first ma non ha un index.html`);
+  }
 });

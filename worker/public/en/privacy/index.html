@@ -37,7 +37,7 @@
   <article class="wrap prose">
     <h1>What stays on your computer, and what does not.</h1>
     <p class="lede-small">Recordings and transcripts never leave your computer. The website counts visits without cookies. The app sends a little anonymous usage data, which you can turn off.</p>
-    <p class="updated">Updated 16 October 2026.</p>
+    <p class="updated">Updated 24 October 2026.</p>
 
     <h2>Recordings and transcripts</h2>
     <p>They stay on your computer, in the Music › Cornetta folder. Transcription uses the Mac's own speech recognition and runs on the Mac. Cornetta never sends audio or text to anyone, including its developer.</p>
@@ -61,16 +61,16 @@
       <li>a transcription ends: successful or failed.</li>
     </ul>
     <p>Each message carries the Cornetta version, the system version, the processor type, the technical code of any error and a random installation number. The country is added by Cloudflare's network, not by the app.</p>
-    <p>Cornetta never sends audio, text, file names, device names, your contacts or the app you call with. The IP address is not stored.</p>
+    <p>Cornetta never sends audio, text, file names, device names, your contacts or the app you call with. To stop bursts of messages, Cloudflare's network counts messages for one minute under a code computed from your IP address (for IPv6, from the part that identifies your network): the address is not stored.</p>
     <p>This data shows whether a new version breaks something, and on which systems, so it can be fixed before you have to report it. It is kept for 12 months, then deleted automatically.</p>
     <p><strong>How to turn it off:</strong> in the Cornetta menu, untick <strong>Invia dati di funzionamento</strong> (Send usage data). From then on the app sends nothing and deletes its installation number.</p>
     <p>The code that sends this data is public: <a href="https://github.com/stellakamikaze/cornetta/blob/master/Sources/Cornetta/Telemetry.swift">Mac</a>, <a href="https://github.com/stellakamikaze/cornetta/blob/master/windows/src/Cornetta.App/Telemetry.cs">Windows</a>, <a href="https://github.com/stellakamikaze/cornetta/blob/master/worker/src/index.js">the service that receives it</a>.</p>
 
     <h2>Feedback</h2>
-    <p>The Feedback button sends your message only when you press it. Name and email are optional, and technical diagnostics are sent only if you choose them. Every message also carries the Cornetta version, the system version, the processor type and the name of the microphone in use. The country is added by Cloudflare's network. To stop bursts of submissions, Cloudflare's network counts submissions for one minute under a code computed from your IP address: the address is not stored. Feedback is deleted automatically after 90 days. When feedback arrives, Federico also gets its text as a Telegram message, without the email address. The diagnostics drop the computer's user name from file paths. If the message reports a problem, its text may become a public issue on GitHub, without name, email or diagnostics.</p>
+    <p>The Feedback button sends your message only when you press it. Name and email are optional, and technical diagnostics are sent only if you turn them on. The diagnostics are the app's technical log: on both Mac and Windows they also include the names of the audio devices in use (microphone, outputs and, on the Mac, sound effects). On the Mac they include the technical identifier of the apps playing audio at that moment, for example com.apple.Music. On Windows they include the names of the apps using the microphone and of the app a call was detected in, for example Microsoft Teams. They never include audio. Every message also carries the Cornetta version, the system version, the processor type and the name of the microphone in use. The country is added by Cloudflare's network. To stop bursts of submissions, Cloudflare's network counts submissions for one minute under a code computed from your IP address: the address is not stored. Feedback is deleted automatically after 90 days. When feedback arrives, Federico also gets its text as a Telegram message, without the email address. The diagnostics drop the computer's user name from file paths. If the message reports a problem, its text may become a public issue on GitHub, without name, email or diagnostics.</p>
 
     <h2>Updates</h2>
-    <p>At launch and every 4 hours the app checks for a new version by downloading the version list from cornetta.stellakamikaze.org. The request carries only the installed version.</p>
+    <p>At launch and every 4 hours the app checks for a new version by downloading the version list from cornetta.stellakamikaze.org. From the Mac the request carries the app name and version and the version of Sparkle, the update library. From Windows it carries the app name and version, the system (Windows) and the processor type.</p>
 
     <h2>Who handles the data</h2>
     <p>Cornetta is a personal project by <a href="https://stellakamikaze.org/">Federico Nejrotti</a>. The website and services run on Cloudflare. Visit statistics run on Federico's own server. For questions or requests use the Feedback button in the app, or open an issue <a href="https://github.com/stellakamikaze/cornetta/issues">on GitHub</a>.</p>

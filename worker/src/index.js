@@ -2,7 +2,7 @@
 // e serve pagina, DMG e feed degli aggiornamenti.
 // I file statici stanno in ../public; qui passano solo /api/*, /js/p.js, /download* e le pagine HTML.
 
-// Tetto del corpo del feedback: un messaggio fino a 10.000 caratteri più la diagnostica (120 righe di log).
+// Tetto del corpo del feedback in byte: un messaggio fino a 10.000 caratteri più la diagnostica (120 righe di log).
 const MAX_BODY = 48_000;
 const KEEP_SECONDS = 90 * 24 * 3600;   // i feedback si cancellano da soli dopo 90 giorni (scripts/feedback.py legge questa riga)
 
@@ -13,9 +13,9 @@ const TELEMETRY_KEEP_DAYS = 365;
 // Le pagine HTML escono con no-transform: così Cloudflare non inietta lo script
 // anti-bot (JavaScript Detections, che sul piano Free non si spegne) e la CSP
 // resta script-src 'self'. no-transform toglie anche la compressione dell'edge,
-// quindi il gzip lo fa il Worker. Una pagina nuova va qui e in run_worker_first.
-const PAGINE = new Set(["/", "/en/", "/privacy/", "/en/privacy/"]);
-
+// quindi il gzip lo fa il Worker. L'elenco delle pagine è run_worker_first in
+// wrangler.toml: una pagina nuova va solo lì, e il test la cerca anche su disco.
+// Tutto ciò che non è HTML con status 200 (404, file mancanti) esce com'è.
 async function pagina(request, env) {
   const r = await env.ASSETS.fetch(request);
   if (r.status !== 200 || !(r.headers.get("content-type") || "").startsWith("text/html")) return r;
@@ -60,8 +60,7 @@ export default {
     }
     if (url.pathname === "/api/health") return json({ ok: true });
     if (url.pathname.startsWith("/api/")) return json({ ok: false, error: "Non trovato" }, 404);
-    if (PAGINE.has(url.pathname)) return pagina(request, env);
-    return env.ASSETS.fetch(request);
+    return pagina(request, env);
   },
 
   async scheduled(event, env) {
@@ -103,8 +102,13 @@ export function validateTelemetry(body) {
 async function saveTelemetry(request, env) {
   const { success } = await env.TELEMETRY_LIMIT.limit({ key: await addressKey("telemetria", request) });
   if (!success) return json({ ok: false, error: "Troppi eventi" }, 429);
-  const raw = await request.text();
-  if (raw.length > 2000) return json({ ok: false, error: "Evento troppo lungo" }, 413);
+  // Chi ha una /48 IPv6 ha 65.536 reti /64: sopra il limite per /64 c'è quello, più largo, per /48.
+  if (isIPv6(request)) {
+    const wide = await env.TELEMETRY48_LIMIT.limit({ key: await addressKey("telemetria48", request, 48) });
+    if (!wide.success) return json({ ok: false, error: "Troppi eventi" }, 429);
+  }
+  const raw = await readCapped(request, 2000);
+  if (raw === null) return json({ ok: false, error: "Evento troppo lungo" }, 413);
   let body;
   try { body = JSON.parse(raw); } catch { return json({ ok: false, error: "JSON non valido" }, 400); }
   const e = validateTelemetry(body);
@@ -147,8 +151,8 @@ function ipv6Groups(ip) {
   return groups.map((g) => g.padStart(4, "0"));
 }
 
-/** IPv4 intero, IPv6 ridotto alla sua /64 («2001:0db8:0001:0002::/64»). */
-export function addressPrefix(ip) {
+/** IPv4 intero, IPv6 ridotto alla sua /64 («2001:0db8:0001:0002::/64») o alla /48 con bits = 48. */
+export function addressPrefix(ip, bits = 64) {
   if (!ip || !ip.includes(":")) return ip || "";
   const groups = ipv6Groups(ip);
   if (!groups) return ip;
@@ -157,7 +161,11 @@ export function addressPrefix(ip) {
     const n = parseInt(groups[6] + groups[7], 16);
     return [n >>> 24, (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join(".");
   }
-  return groups.slice(0, 4).join(":") + "::/64";
+  return groups.slice(0, bits / 16).join(":") + `::/${bits}`;
+}
+
+function isIPv6(request) {
+  return addressPrefix(request.headers.get("cf-connecting-ip") || "").endsWith("::/64");
 }
 
 async function sha256Hex(text, bytes = 16) {
@@ -165,9 +173,9 @@ async function sha256Hex(text, bytes = 16) {
   return [...new Uint8Array(digest)].slice(0, bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** Chiave per limiti e dedup: hash di uso e indirizzo (o /64), mai l'indirizzo in chiaro. */
-async function addressKey(use, request) {
-  return sha256Hex(`${use}:${addressPrefix(request.headers.get("cf-connecting-ip") || "")}`);
+/** Chiave per limiti e dedup: hash di uso e indirizzo (o /64, /48), mai l'indirizzo in chiaro. */
+async function addressKey(use, request, bits = 64) {
+  return sha256Hex(`${use}:${addressPrefix(request.headers.get("cf-connecting-ip") || "", bits)}`);
 }
 
 // MARK: - Avvisi su Telegram (@autoarturobot)
@@ -228,7 +236,8 @@ async function announceDownload(request, env, platform) {
   let version = "";
   try {
     const latest = await (await env.ASSETS.fetch(new Request(`https://${SITE}/downloads/latest.json`))).json();
-    version = latest[platform]?.version || "";
+    // latest.json (scripts/release.sh) ha le chiavi «mac» e «windows».
+    version = latest[platform === "macos" ? "mac" : "windows"]?.version || "";
   } catch {}
   let from = "";
   try { from = new URL(request.headers.get("referer") || "").hostname; } catch {}
@@ -259,8 +268,8 @@ async function plausibleScript(request) {
 
 async function plausibleEvent(request) {
   if (request.method !== "POST") return new Response(null, { status: 405, headers: { allow: "POST" } });
-  const body = await request.text();
-  if (body.length > 4000) return new Response(null, { status: 413 });
+  const body = await readCapped(request, 4000);
+  if (body === null) return new Response(null, { status: 413 });
   try {
     const response = await fetch(PLAUSIBLE + "/api/event", { method: "POST", headers: plausibleHeaders(request), body });
     return new Response(null, { status: response.status === 202 ? 202 : response.status });
@@ -291,8 +300,8 @@ async function saveFeedback(request, env, ctx) {
   const { success } = await env.FEEDBACK_LIMIT.limit({ key: await addressKey("feedback", request) });
   if (!success) return json({ ok: false, error: "Troppi invii, riprova tra qualche minuto" }, 429);
 
-  const raw = await request.text();
-  if (raw.length > MAX_BODY) return json({ ok: false, error: "Messaggio troppo lungo" }, 413);
+  const raw = await readCapped(request, MAX_BODY);
+  if (raw === null) return json({ ok: false, error: "Messaggio troppo lungo" }, 413);
 
   let body;
   try {
@@ -324,18 +333,51 @@ async function saveFeedback(request, env, ctx) {
   try {
     await env.FEEDBACK.put(id, JSON.stringify(record), {
       expirationTtl: KEEP_SECONDS,
-      metadata: { preview: message.slice(0, 120), version: record.app.version || "", platform: record.platform, status: "nuovo" },
+      metadata: { preview: cut(message, 120), version: record.app.version || "", platform: record.platform, status: "nuovo" },
     });
   } catch {
     return json({ ok: false, error: "Archivio non disponibile, riprova tra poco" }, 503);
   }
   ctx.waitUntil(alertAllowed(env, "feedback").then((allowed) => allowed && telegram(env, [
     `Cornetta: feedback da ${record.platform === "windows" ? "Windows" : "Mac"} ${record.app.version || "?"}${record.country ? ", " + record.country : ""}`,
-    `«${message.slice(0, 600)}${message.length > 600 ? "…" : ""}»`,
+    `«${cut(message, 600)}»`,
     record.email ? "Ha lasciato l'email per la risposta." : "",
     `scripts/feedback.py show ${id}`,
   ].filter(Boolean).join("\n"))));
   return json({ ok: true, id });
+}
+
+// Taglia per caratteri veri, non per unità UTF-16: un'emoji spezzata lascia un surrogato solo,
+// e Telegram rifiuta il messaggio (400).
+function cut(text, n) {
+  const parts = Array.from(text);
+  return parts.length > n ? parts.slice(0, n).join("") + "…" : text;
+}
+
+// Legge il corpo fino a max byte e si ferma lì: senza Content-Length (chunked, HTTP/2) request.text()
+// caricherebbe tutto, fino ai 100 MB di Cloudflare. null = corpo troppo lungo.
+async function readCapped(request, max) {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > max) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
 }
 
 function pick(value, keys) {
