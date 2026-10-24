@@ -41,11 +41,18 @@ namespace Cornetta.App
 
         public static string ExecutablePath => Assembly.GetExecutingAssembly().Location;
 
-        /// <summary>%LOCALAPPDATA%\Cornetta: log e impostazioni tecniche.</summary>
+        /// <summary>%LOCALAPPDATA%\Cornetta: log e impostazioni tecniche. È anche la radice d'installazione di Velopack.</summary>
         public static string DataDirectory =>
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Cornetta");
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), WorkingFiles.InstallRootName);
 
         public static string LogPath => Path.Combine(DataDirectory, "cornetta.log");
+
+        /// <summary>
+        /// I WAV delle registrazioni in corso, e di quelle interrotte da recuperare: %LOCALAPPDATA%\Cornetta Dati\In corso,
+        /// fuori da DataDirectory, che la disinstallazione e la riparazione da CornettaSetup.exe cancellano.
+        /// </summary>
+        public static string WorkingDirectory =>
+            WorkingFiles.DefaultDirectory(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
 
         /// <summary>Musica\Cornetta (la cartella Musica dell'utente, anche se spostata su OneDrive).</summary>
         public static string RecordingsDirectory
@@ -121,7 +128,7 @@ namespace Cornetta.App
             if (devices.GeneralInput != null && devices.GeneralInput != devices.Input)
                 lines.Add("Ingresso predefinito generale (non usato): " + devices.GeneralInput);
             if (devices.GeneralOutput != null && devices.GeneralOutput != devices.Output)
-                lines.Add("Uscita predefinita generale (non usata): " + devices.GeneralOutput);
+                lines.Add("Uscita predefinita generale (ascoltata anche lei): " + devices.GeneralOutput);
             lines.Add("Permesso microfono: " + (MicrophonePrivacy.IsAllowed() ? "sì" : "no"));
             lines.Add("App che usano il microfono: " + string.Join(", ", CallDetector.CallApps(MicrophoneUsage.Read()).Select(a => a.Name)));
             lines.Add("Registrazioni: " + RecordingsDirectory);

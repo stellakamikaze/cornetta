@@ -44,6 +44,9 @@ namespace Cornetta.App
                     Save(new NoticeForm("ended", "\uE778", Theme.Orange, "La chiamata sembra finita",
                         "Cornetta sta ancora registrando.", "Ferma e salva", "Continua", () => { }, () => { }),
                         Path.Combine(dir, "avviso-fine" + suffix + ".png"));
+                    Save(new NoticeForm("silence", "", Theme.Orange, "Non sento la voce degli altri",
+                        "La chiamata è in corso, ma da Altoparlanti (Realtek(R) Audio) non arriva niente. Controlla quale uscita usa l'app della chiamata.",
+                        "Apri impostazioni audio", "Chiudi", () => { }, () => { }), Path.Combine(dir, "avviso-silenzio" + suffix + ".png"));
                 }
                 Theme.Override = null;
                 Save(new FeedbackForm("Microfono (Realtek(R) Audio)"), Path.Combine(dir, "feedback.png"));

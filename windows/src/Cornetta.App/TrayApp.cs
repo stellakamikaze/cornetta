@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Media;
@@ -37,6 +38,10 @@ namespace Cornetta.App
         private string? lastFile;
         private bool microphoneDenied;
         private bool callEndedSuggestion;
+        private bool pollInFlight;
+        /// <summary>La conversione dell'ultima registrazione fermata, finché non finisce.</summary>
+        private Task<bool>? saving;
+        private SilenceWatch? silenceWatch;
 
         private OverlayForm? overlay;
         private NoticeForm? notice;
@@ -75,6 +80,31 @@ namespace Cornetta.App
                 tray.ShowBalloonTip(10_000, "Cornetta è pronta",
                     "La trovi qui, nell'area di notifica vicino all'orologio. Un clic sull'icona apre il menu.", ToolTipIcon.Info);
             }
+            RecoverInterruptedRecordings();
+        }
+
+        /// <summary>
+        /// Registrazioni interrotte da un crash, da Gestione attività o da uno spegnimento: le salva come il Mac.
+        /// L'elenco si legge subito, prima che parta una registrazione nuova; la conversione gira in background.
+        /// </summary>
+        private async void RecoverInterruptedRecordings()
+        {
+            try
+            {
+                var leftovers = WorkingFiles.Leftovers(AppInfo.WorkingDirectory);
+                if (leftovers.Length == 0) return;
+                List<string> saved = await Task.Run(() => RecordingFiles.Recover(leftovers, AppInfo.RecordingsDirectory));
+                if (saved.Count == 0) return;
+                string name = saved[saved.Count - 1];
+                lastFile = Path.Combine(AppInfo.RecordingsDirectory, name);
+                message = "Recuperata una registrazione interrotta: " + name;
+                tray.ShowBalloonTip(8000, "Registrazione recuperata",
+                    (saved.Count == 1 ? name : saved.Count + " registrazioni interrotte") + "\nUn clic qui per vederla nella cartella.", ToolTipIcon.Info);
+            }
+            catch (Exception ex)
+            {
+                Diagnostics.Log("Recupero delle registrazioni interrotte: " + ex.Message);
+            }
         }
 
         private bool IsRecording => recorder != null;
@@ -110,7 +140,7 @@ namespace Cornetta.App
             if (message != null) Info(message);
             if (microphoneDenied)
             {
-                Add("Apri le impostazioni del microfono…", OpenMicrophoneSettings);
+                Add("Apri le impostazioni del microfono…", () => OpenSettings("ms-settings:privacy-microphone"));
             }
             menu.Items.Add(new ToolStripSeparator());
             Add("Apri cartella registrazioni", OpenFolder);
@@ -195,7 +225,9 @@ namespace Cornetta.App
             bool micAllowed = MicrophonePrivacy.IsAllowed();
             Diagnostics.Log("Permesso microfono: " + (micAllowed ? "true" : "false"));
             microphoneDenied = !micAllowed;
-            string path = FileNaming.RecordingPath(AppInfo.RecordingsDirectory, DateTime.Now, null, AudioFileSink.Extension);
+            // Un nome occupato anche da un WAV ancora in «In corso» (salvataggio fallito, recupero in corso): il nuovo lo azzererebbe.
+            string path = FileNaming.RecordingPath(AppInfo.RecordingsDirectory, DateTime.Now,
+                p => File.Exists(p) || File.Exists(WorkingFiles.PathFor(AppInfo.WorkingDirectory, p)), RecordingFiles.Extension);
             var newRecorder = new Recorder(path);
             newRecorder.MicrophoneChanged += name => invoker.BeginInvoke(new Action(() => { microphoneName = name; Tick(); }));
             newRecorder.Failure += text => invoker.BeginInvoke(new Action(() => HandleFailure(newRecorder, text)));
@@ -230,21 +262,27 @@ namespace Cornetta.App
             startedAt = DateTime.UtcNow;
             callEndedSuggestion = false;
             calls.RecordingStarted(DateTime.UtcNow);
+            silenceWatch = new SilenceWatch();
+            silenceWatch.NoteCallApps(calls.CurrentApps.Count);
             meterTimer.Start();
             RefreshOverlay();
             UpdateTrayIcon();
             if (message != null) tray.ShowBalloonTip(6000, "Cornetta", message, ToolTipIcon.Warning);
         }
 
+        /// <summary>
+        /// Chiude subito il WAV di lavoro e libera l'interfaccia: la conversione in AAC (decine di secondi per una chiamata
+        /// lunga) gira dopo, in background, e intanto si può già registrare la chiamata successiva.
+        /// </summary>
         private async Task Stop()
         {
             var current = recorder;
             if (current == null || busy) return;
             busy = true;
+            RecordingStats? stats = null;
             try
             {
-                var stats = await Task.Run(() => current.Stop());
-                Telemetry.Send("registrazione", "ok", seconds: stats.Seconds);
+                stats = await Task.Run(() => current.StopWithoutSaving());
                 Diagnostics.Log("Stop: " + Diagnostics.F(stats.Seconds, 2) + " s scritti, "
                     + Diagnostics.F((DateTime.UtcNow - startedAt).TotalSeconds, 2) + " s dall'avvio, riavvii " + current.RestartCount
                     + ", guadagno voce " + Diagnostics.F(current.MicGain, 1));
@@ -258,10 +296,38 @@ namespace Cornetta.App
             {
                 busy = false;
             }
-            lastFile = current.OutputPath;
             Finish();
-            message = "Salvata: " + Path.GetFileName(current.OutputPath);
-            tray.ShowBalloonTip(6000, "Registrazione salvata", Path.GetFileName(current.OutputPath) + "\nUn clic qui per vederla nella cartella.", ToolTipIcon.Info);
+            message = "Salvo " + Path.GetFileName(current.OutputPath) + "…";
+            // File.Exists fuori dal thread dell'interfaccia: la cartella può stare su un disco di rete o su OneDrive.
+            var save = Task.Run(() => current.SaveRecording());
+            saving = save;
+            _ = save.ContinueWith(t => OnUi(() => SaveFinished(current, t, stats)));
+        }
+
+        private void SaveFinished(Recorder current, Task<bool> save, RecordingStats? stats)
+        {
+            if (saving == save) saving = null;
+            bool saved = save.Status == TaskStatus.RanToCompletion && save.Result;
+            if (stats != null)
+            {
+                if (current.SaveError != null)
+                    Telemetry.Send("registrazione", "errore", TelemetryPayload.ErrorCode(current.SaveError, "salvataggio"), stats.Seconds);
+                else
+                    Telemetry.Send("registrazione", "ok", seconds: stats.Seconds);
+            }
+            if (saved) lastFile = current.OutputPath;
+            // Una registrazione nuova partita nel frattempo tiene il suo stato: niente messaggio né avviso sopra la chiamata.
+            if (IsRecording || busy) return;
+            if (saved)
+            {
+                message = "Salvata: " + Path.GetFileName(current.OutputPath);
+                tray.ShowBalloonTip(6000, "Registrazione salvata", Path.GetFileName(current.OutputPath) + "\nUn clic qui per vederla nella cartella.", ToolTipIcon.Info);
+            }
+            else
+            {
+                message = NotSavedMessage;
+                tray.ShowBalloonTip(8000, "Cornetta", NotSavedMessage, ToolTipIcon.Warning);
+            }
             if (pendingUpdateNotice != null)
             {
                 string version = pendingUpdateNotice;
@@ -284,7 +350,9 @@ namespace Cornetta.App
         {
             meterTimer.Stop();
             recorder = null;
+            silenceWatch = null;
             callEndedSuggestion = false;
+            if (notice?.Kind == "silence") CloseNotice();
             RefreshOverlay();
             UpdateTrayIcon();
         }
@@ -295,6 +363,25 @@ namespace Cornetta.App
             var levels = recorder!.Meter?.Levels ?? (0f, 0f);
             overlay?.UpdateState(ElapsedText, levels.Mic, levels.System, microphoneName, callEndedSuggestion);
             if (DateTime.UtcNow.Millisecond < 100) UpdateTrayIcon();
+            CheckOthersAudio();
+        }
+
+        /// <summary>La voce degli altri non arriva (vedi SilenceWatch): avviso una volta, oppure solo una riga nel log.</summary>
+        private void CheckOthersAudio()
+        {
+            var current = recorder!;
+            var stats = current.Stats;
+            if (stats == null || silenceWatch == null) return;
+            switch (silenceWatch.Check(stats))
+            {
+                case SilenceAlert.OthersMuted:
+                    Diagnostics.Log("Avviso: audio di sistema muto durante una chiamata");
+                    ShowOthersMutedNotice(current.GeneralOutputName != null ? current.OutputName + " e " + current.GeneralOutputName : current.OutputName);
+                    break;
+                case SilenceAlert.LongSilence:
+                    Diagnostics.Log("Audio di sistema a zero da oltre " + SilenceWatch.LongSilenceSeconds + " s durante una chiamata");
+                    break;
+            }
         }
 
         // MARK: - Pannello di registrazione
@@ -328,14 +415,20 @@ namespace Cornetta.App
 
         // MARK: - Chiamate
 
-        private void PollCalls()
+        private async void PollCalls()
         {
-            var apps = CallDetector.CallApps(MicrophoneUsage.Read());
+            // Sessioni audio e processi si leggono fuori dal thread dell'interfaccia: un dispositivo lento non blocca menu e scorciatoia.
+            if (pollInFlight) return;
+            pollInFlight = true;
+            List<CallApp> apps;
+            try { apps = await Task.Run(() => CallDetector.CallApps(MicrophoneUsage.Read())); }
+            finally { pollInFlight = false; }
             bool noticeOpen = notice != null;
             var result = calls.Poll(DateTime.UtcNow, apps, IsRecording, Settings.ProposeOnCall, noticeOpen, notice?.Kind == "call");
 
             if (IsRecording)
             {
+                silenceWatch?.NoteCallApps(apps.Count);
                 if (result.CallResumed)
                 {
                     callEndedSuggestion = false;
@@ -378,6 +471,17 @@ namespace Cornetta.App
                 "Ferma e salva", "Continua",
                 () => { CloseNotice(); _ = Stop(); },
                 () => { CloseNotice(); DismissCallEnded(); }));
+        }
+
+        private void ShowOthersMutedNotice(string? outputs)
+        {
+            SystemSounds.Exclamation.Play();
+            ShowNotice(new NoticeForm("silence", "\uE7BA", Theme.Orange,
+                "Non sento la voce degli altri",
+                "La chiamata è in corso, ma da " + (outputs ?? "l'uscita audio") + " non arriva niente. Controlla quale uscita usa l'app della chiamata.",
+                "Apri impostazioni audio", "Chiudi",
+                () => { CloseNotice(); OpenSettings("ms-settings:sound"); },
+                CloseNotice));
         }
 
         // MARK: - Aggiornamenti
@@ -437,6 +541,8 @@ namespace Cornetta.App
             SetTrayText("Cornetta · Scarico l'aggiornamento…");
             try
             {
+                // L'aggiornamento riavvia l'app: la conversione appena partita finisce prima.
+                if (saving != null) await saving;
                 await updates.InstallAsync(
                     percent => invoker.BeginInvoke(new Action(() => SetTrayText("Cornetta · Aggiornamento " + percent + "%"))),
                     () => { tray.Visible = false; });
@@ -482,7 +588,7 @@ namespace Cornetta.App
                 feedback.Activate();
                 return;
             }
-            feedback = new FeedbackForm(microphoneName ?? AudioDevices.Describe().Input);
+            feedback = new FeedbackForm(microphoneName);
             feedback.FormClosed += (_, __) => feedback = null;
             feedback.Show();
             feedback.Activate();
@@ -517,11 +623,11 @@ namespace Cornetta.App
             }
         }
 
-        private void OpenMicrophoneSettings()
+        private void OpenSettings(string uri)
         {
             try
             {
-                Process.Start(new ProcessStartInfo("ms-settings:privacy-microphone") { UseShellExecute = true });
+                Process.Start(new ProcessStartInfo(uri) { UseShellExecute = true });
             }
             catch (Exception ex)
             {
@@ -542,6 +648,8 @@ namespace Cornetta.App
                 Diagnostics.Log("Stop all'uscita: " + Diagnostics.F(stats.Seconds, 2) + " s scritti");
                 recorder = null;
             }
+            // Una conversione partita da Stop: qualche secondo per finirla, poi il WAV lo salva il recupero al prossimo avvio.
+            if (saving != null) await Task.WhenAny(saving, Task.Delay(TimeSpan.FromSeconds(10)));
             ExitThread();
         }
 
@@ -550,33 +658,48 @@ namespace Cornetta.App
 
         private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
         {
-            if (e.Mode == PowerModes.Suspend) StopForSystem("Registrazione fermata e salvata: il PC è andato in sospensione.");
+            if (e.Mode == PowerModes.Suspend) StopForSystem("Registrazione fermata: il PC è andato in sospensione.");
         }
 
-        /// <summary>Chiude subito il file, da qualunque thread arrivi l'evento di sistema.</summary>
+        /// <summary>
+        /// Chiude subito il WAV di lavoro, da qualunque thread arrivi l'evento di sistema: qui la conversione non fa in tempo.
+        /// Parte subito dopo in background; se Windows chiude l'app prima, la finisce il recupero al prossimo avvio.
+        /// </summary>
         private void StopForSystem(string reason)
         {
             var current = recorder;
             if (current == null) return;
             try
             {
-                var stats = Task.Run(() => current.Stop()).Result;
+                var stats = Task.Run(() => current.StopWithoutSaving()).Result;
                 Diagnostics.Log(reason + " " + Diagnostics.F(stats.Seconds, 2) + " s scritti");
             }
             catch (Exception ex)
             {
                 Diagnostics.Log("Stop di sistema non riuscito: " + ex.GetBaseException().Message);
             }
-            try
+            string pending = current.OutputPath;
+            OnUi(() =>
             {
-                invoker.BeginInvoke(new Action(() =>
-                {
-                    if (recorder != current) return;
-                    lastFile = current.OutputPath;
-                    Finish();
-                    message = reason;
-                }));
-            }
+                if (recorder != current) return;
+                lastFile = pending;
+                Finish();
+                message = reason;
+            });
+            Task.Run(() => current.SaveRecording()).ContinueWith(t => OnUi(() =>
+            {
+                if (lastFile != pending) return;
+                if (t.Status == TaskStatus.RanToCompletion && t.Result) { lastFile = current.OutputPath; return; }
+                lastFile = null;
+                if (message == reason) message = NotSavedMessage;
+            }));
+        }
+
+        private const string NotSavedMessage = "Registrazione non salvata: la recupero al prossimo avvio.";
+
+        private void OnUi(Action action)
+        {
+            try { invoker.BeginInvoke(action); }
             catch (InvalidOperationException) { }
         }
 
@@ -584,13 +707,15 @@ namespace Cornetta.App
         {
             SystemEvents.SessionEnding -= OnSessionEnding;
             SystemEvents.PowerModeChanged -= OnPowerModeChanged;
-            // Chiude il file anche se l'app esce durante una registrazione.
+            // Chiude il WAV anche se l'app esce durante una registrazione: lo salva il recupero al prossimo avvio.
             if (recorder != null)
             {
                 var current = recorder;
                 recorder = null;
-                Task.Run(() => current.Stop()).Wait(TimeSpan.FromSeconds(30));
+                Task.Run(() => current.StopWithoutSaving()).Wait(TimeSpan.FromSeconds(30));
             }
+            try { saving?.Wait(TimeSpan.FromSeconds(5)); }
+            catch (AggregateException) { }
             meterTimer.Stop();
             callTimer.Stop();
             updateTimer.Stop();

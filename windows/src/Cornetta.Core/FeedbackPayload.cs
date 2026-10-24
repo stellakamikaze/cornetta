@@ -28,6 +28,9 @@ namespace Cornetta.Core
         /// <summary>La casella «Allega informazioni tecniche» parte spenta, come sul Mac: la diagnostica la sceglie chi scrive.</summary>
         public const bool DiagnosticsByDefault = false;
 
+        /// <summary>Il nome del microfono parte solo con la diagnostica, come sul Mac: i nomi Bluetooth contengono spesso quello della persona.</summary>
+        public static string? MicrophoneToSend(string? microphone, bool includeDiagnostics) => includeDiagnostics ? microphone : null;
+
         public static string ToJson(string message, string name, string email, string? diagnostics, FeedbackAppInfo app)
         {
             var sb = new StringBuilder();

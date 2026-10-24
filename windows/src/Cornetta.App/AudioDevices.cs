@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using Cornetta.Core;
 using Microsoft.Win32;
 using NAudio.CoreAudioApi;
+using NAudio.CoreAudioApi.Interfaces;
 
 namespace Cornetta.App
 {
@@ -12,10 +15,11 @@ namespace Cornetta.App
     internal static class AudioDevices
     {
         /// <summary>
-        /// Il ruolo «Comunicazioni» è quello che usano Teams, Zoom, WhatsApp e il browser in chiamata. Può essere
-        /// diverso dal predefinito generale: su un PC con «Stereo Mix» come ingresso predefinito il microfono vero
-        /// sta solo lì, e col predefinito generale Cornetta registrerebbe due volte gli altri e mai te.
-        /// Senza un dispositivo per le comunicazioni si usa il predefinito generale.
+        /// Il ruolo «Comunicazioni» è quello che usano Teams, Zoom e WhatsApp in chiamata. Può essere diverso dal
+        /// predefinito generale: su un PC con «Stereo Mix» come ingresso predefinito il microfono vero sta solo lì,
+        /// e col predefinito generale Cornetta registrerebbe due volte gli altri e mai te.
+        /// Senza un dispositivo per le comunicazioni si usa il predefinito generale. Per l'uscita Cornetta ascolta anche
+        /// il predefinito generale, se è un altro (GeneralOutput): lì suona il browser finché il sito non sceglie un'uscita.
         /// </summary>
         public const Role CallRole = Role.Communications;
 
@@ -71,6 +75,50 @@ namespace Cornetta.App
             {
                 Diagnostics.Log("Dispositivo predefinito non disponibile (" + flow + "): " + ex.Message);
                 return null;
+            }
+        }
+
+        /// <summary>L'uscita predefinita generale, se è diversa da <paramref name="callOutput"/>. Altrimenti null.</summary>
+        public static MMDevice? GeneralOutput(MMDeviceEnumerator enumerator, MMDevice callOutput)
+        {
+            try
+            {
+                if (!enumerator.HasDefaultAudioEndpoint(DataFlow.Render, Role.Console)) return null;
+                var general = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Console);
+                if (general.ID != callOutput.ID) return general;
+                general.Dispose();
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Diagnostics.Log("Uscita predefinita generale non disponibile: " + ex.Message);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Un flusso sul dispositivo delle chiamate per Windows è una chiamata: con l'impostazione predefinita abbassa
+        /// dell'80% gli altri suoni (anche una chiamata nel browser). Cornetta chiede di non farlo, prima di aprire i flussi.
+        /// La sessione resta in vita col dispositivo, che la cattura tiene finché registra.
+        /// </summary>
+        public static void OptOutOfDucking(MMDevice device)
+        {
+            try
+            {
+                var control = device.AudioSessionManager.AudioSessionControl;
+                // NAudio 2.2.1 non espone SetDuckingPreference: si usa l'interfaccia COM che il wrapper tiene in un campo privato.
+                var field = typeof(AudioSessionControl).GetField("audioSessionControlInterface2", BindingFlags.Instance | BindingFlags.NonPublic);
+                if (!(field?.GetValue(control) is IAudioSessionControl2 session))
+                {
+                    Diagnostics.Log("Attenuazione degli altri suoni: interfaccia non trovata");
+                    return;
+                }
+                Marshal.ThrowExceptionForHR(session.SetDuckingPreference(true));
+                Diagnostics.Log("Attenuazione degli altri suoni esclusa: " + device.FriendlyName);
+            }
+            catch (Exception ex)
+            {
+                Diagnostics.Log("Attenuazione degli altri suoni non esclusa: " + ex.Message);
             }
         }
 

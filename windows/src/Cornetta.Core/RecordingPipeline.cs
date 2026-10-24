@@ -19,6 +19,8 @@ namespace Cornetta.Core
         public const int SampleRate = 48000;
         /// <summary>Blocchi da 10 ms: il livellatore lavora a passi simili a quelli del Mac.</summary>
         public const int BlockFrames = 480;
+        /// <summary>Oltre questo ritardo CatchUp non scrive il buco: l'orologio è saltato (processo congelato, standby).</summary>
+        public const int MaxCatchUpSeconds = 10;
 
         private readonly IAudioSink sink;
         private readonly VoiceLeveler leveler = new VoiceLeveler();
@@ -33,6 +35,8 @@ namespace Cornetta.Core
         public CaptureTimeline Microphone { get; } = new CaptureTimeline(1, SampleRate);
         /// <summary>Audio di sistema stereo sulla linea del tempo.</summary>
         public CaptureTimeline System { get; } = new CaptureTimeline(2, SampleRate);
+        /// <summary>Seconda uscita stereo (il predefinito generale, se diverso da quello delle chiamate): si somma a System.</summary>
+        public CaptureTimeline System2 { get; } = new CaptureTimeline(2, SampleRate);
         /// <summary>Falso se si registra senza microfono: la voce non passa dal livellatore.</summary>
         public bool HasMicrophone { get; set; } = true;
 
@@ -50,12 +54,13 @@ namespace Cornetta.Core
                 long end = rendered + frames;
                 float[] mic = Microphone.Read(end);
                 float[] system = System.Read(end);
+                float[] system2 = System2.Read(end);
                 var left = new float[frames];
                 var right = new float[frames];
                 for (int i = 0; i < frames; i++)
                 {
-                    left[i] = system[i * 2];
-                    right[i] = system[i * 2 + 1];
+                    left[i] = system[i * 2] + system2[i * 2];
+                    right[i] = system[i * 2 + 1] + system2[i * 2 + 1];
                 }
 
                 bool hasMic = HasMicrophone;
@@ -75,6 +80,26 @@ namespace Cornetta.Core
                 sink.Write(interleaved, frames);
                 rendered = end;
             }
+        }
+
+        /// <summary>
+        /// Come Render, ma un ritardo oltre MaxCatchUpSeconds non diventa ore di silenzio scritte in un colpo:
+        /// salta fino a un secondo prima di <paramref name="upTo"/>. Restituisce i frame saltati.
+        /// </summary>
+        public long CatchUp(long upTo)
+        {
+            long skipped = 0;
+            if (upTo - rendered > (long)MaxCatchUpSeconds * SampleRate)
+            {
+                long resume = upTo - SampleRate;
+                skipped = resume - rendered;
+                Microphone.Discard(resume);
+                System.Discard(resume);
+                System2.Discard(resume);
+                rendered = resume;
+            }
+            Render(upTo);
+            return skipped;
         }
     }
 }

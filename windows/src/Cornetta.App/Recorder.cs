@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using Cornetta.Core;
 using NAudio.CoreAudioApi;
@@ -11,9 +12,10 @@ namespace Cornetta.App
     /// <summary>
     /// Registra in un file la voce dal microfono e l'audio di sistema (la voce degli altri in chiamata).
     ///
-    /// Due catture WASAPI indipendenti (microfono e loopback dell'uscita, quelli che Windows assegna alle chiamate) scrivono sulla
-    /// stessa linea del tempo, decisa da un orologio unico (CaptureTimeline). Un thread mixer legge
-    /// la linea del tempo con 350 ms di ritardo, livella la voce, mixa e scrive il file.
+    /// Catture WASAPI indipendenti (microfono e loopback dell'uscita, quelli che Windows assegna alle chiamate, più il loopback
+    /// dell'uscita predefinita generale se è un'altra) scrivono sulla stessa linea del tempo, decisa da un orologio unico
+    /// (CaptureTimeline). Un thread mixer legge la linea del tempo con 350 ms di ritardo, livella la voce, mixa e scrive
+    /// il WAV di lavoro, che allo stop diventa il file nella cartella delle registrazioni (RecordingFiles).
     /// Per tenere vivo il loopback quando nessuno parla, Cornetta suona silenzio sull'uscita.
     ///
     /// Start, Stop e i riavvii girano su thread MTA (Task.Run), mai sul thread dell'interfaccia.
@@ -27,11 +29,15 @@ namespace Cornetta.App
         private readonly Stopwatch clock = new Stopwatch();
         private MMDeviceEnumerator? enumerator;
         private DeviceWatcher? watcher;
-        private AudioFileSink? sink;
+        private WavRecordingSink? sink;
         private RecordingPipeline? pipeline;
         private SourceCapture? mic;
         private SourceCapture? system;
+        private SourceCapture? system2;
+        /// <summary>L'ID del dispositivo che il loopback delle chiamate ascolta, per riconoscere un cambio che lo sposta.</summary>
+        private string? systemDeviceId;
         private WasapiOut? keepAlive;
+        private WasapiOut? keepAlive2;
         private Thread? mixThread;
         private Timer? watchdog;
         private Timer? restartDebounce;
@@ -40,21 +46,31 @@ namespace Cornetta.App
         private int firstBlockLogged;
         private bool pendingMicRestart;
         private bool pendingSystemRestart;
+        private bool pendingSystem2Restart;
         private int watchdogTicks;
 
-        public Recorder(string outputPath)
+        public Recorder(string outputPath, string? workingDirectory = null)
         {
             OutputPath = outputPath;
+            WorkingPath = WorkingFiles.PathFor(workingDirectory ?? AppInfo.WorkingDirectory, outputPath);
         }
 
-        public string OutputPath { get; }
+        /// <summary>Il file nella cartella delle registrazioni. Dopo il salvataggio è quello vero (un .wav se la conversione non è riuscita).</summary>
+        public string OutputPath { get; private set; }
+        /// <summary>Il WAV di lavoro, scritto durante la registrazione.</summary>
+        public string WorkingPath { get; }
         public string? MicrophoneName { get; private set; }
+        /// <summary>L'uscita delle chiamate.</summary>
         public string? OutputName { get; private set; }
-        public bool IsAac => sink?.IsAac ?? false;
+        /// <summary>L'uscita predefinita generale, ascoltata anche lei se è diversa da quella delle chiamate.</summary>
+        public string? GeneralOutputName { get; private set; }
         public bool IsRunning => running;
         public int RestartCount { get; private set; }
         public LevelMeter? Meter => pipeline?.Meter;
+        public RecordingStats? Stats => pipeline?.Stats;
         public float MicGain => pipeline?.MicGain ?? 1;
+        /// <summary>Perché il salvataggio nella cartella delle registrazioni non è riuscito; null se è riuscito.</summary>
+        public Exception? SaveError { get; private set; }
 
         /// <summary>Il microfono è cambiato (es. cuffie collegate a metà chiamata). Arriva da un thread qualsiasi.</summary>
         public event Action<string?>? MicrophoneChanged;
@@ -67,7 +83,9 @@ namespace Cornetta.App
             {
                 if (running) return;
                 this.useMicrophone = useMicrophone;
-                sink = AudioFileSink.Create(OutputPath);
+                // La cartella delle registrazioni (OneDrive offline, disco esterno staccato) si prova subito, non allo stop.
+                Directory.CreateDirectory(Path.GetDirectoryName(OutputPath)!);
+                sink = new WavRecordingSink(WorkingPath);
                 pipeline = new RecordingPipeline(sink);
                 enumerator = new MMDeviceEnumerator();
                 clock.Restart();
@@ -78,9 +96,9 @@ namespace Cornetta.App
                     catch (Exception ex)
                     {
                         // Senza loopback si registra almeno il microfono; il watchdog riprova l'uscita.
-                        system?.Dispose();
-                        system = null;
+                        StopSystem();
                         OutputName = null;
+                        GeneralOutputName = null;
                         Diagnostics.Log("Audio di sistema non avviato: " + ex.Message);
                     }
                     if (useMicrophone) StartMicrophone();
@@ -95,6 +113,7 @@ namespace Cornetta.App
                     running = false;
                     StopCaptures();
                     sink.Close();
+                    try { File.Delete(WorkingPath); } catch (Exception) { }
                     enumerator.Dispose();
                     enumerator = null;
                     throw;
@@ -102,7 +121,9 @@ namespace Cornetta.App
 
                 Diagnostics.Log("Cattura avviata: microfono=" + (mic?.Description ?? "nessuno")
                     + " sistema=" + (system?.Description ?? "nessuno")
-                    + " file=" + (sink.IsAac ? "aac" : "wav")
+                    + (system2 != null ? " + " + system2.Description : "")
+                    + " uscite=" + (system2 != null ? 2 : system != null ? 1 : 0)
+                    + " file=" + Path.GetExtension(OutputPath).TrimStart('.')
                     + " silenzio=" + (keepAlive != null ? "sì" : "no"));
 
                 watcher = new DeviceWatcher(OnDefaultDeviceChanged);
@@ -115,8 +136,22 @@ namespace Cornetta.App
             }
         }
 
-        /// <summary>Ferma la registrazione e chiude il file. Restituisce le statistiche della sessione.</summary>
+        /// <summary>Ferma la registrazione e salva il file nella cartella delle registrazioni. Restituisce le statistiche della sessione.</summary>
         public RecordingStats Stop()
+        {
+            lock (control)
+            {
+                var stats = StopWithoutSaving();
+                SaveRecording();
+                return stats;
+            }
+        }
+
+        /// <summary>
+        /// Ferma e chiude il WAV di lavoro senza convertirlo, come stopForTermination del Mac: allo spegnimento o all'uscita
+        /// non c'è tempo. Il file lo salva SaveRecording, oppure il recupero al prossimo avvio.
+        /// </summary>
+        public RecordingStats StopWithoutSaving()
         {
             lock (control)
             {
@@ -138,7 +173,7 @@ namespace Cornetta.App
                 try
                 {
                     // Gli ultimi 350 ms che il mixer teneva in attesa (solo se il mixer è fermo: la pipeline ha un solo thread).
-                    if (mixerStopped) pipeline?.Render(NowFrame());
+                    if (mixerStopped) pipeline?.CatchUp(NowFrame());
                     else Diagnostics.Log("Il mixer non si è fermato entro 5 s: salto gli ultimi 350 ms");
                 }
                 catch (Exception ex)
@@ -160,6 +195,32 @@ namespace Cornetta.App
             }
         }
 
+        /// <summary>
+        /// Converte il WAV di lavoro, se c'è ancora, nel file della cartella delle registrazioni (OutputPath).
+        /// Restituisce falso se il file non c'è: il WAV resta in «In corso» e lo salva il recupero al prossimo avvio.
+        /// </summary>
+        public bool SaveRecording()
+        {
+            lock (control)
+            {
+                if (running) return false;
+                if (File.Exists(WorkingPath))
+                {
+                    try
+                    {
+                        OutputPath = RecordingFiles.Finalize(WorkingPath, OutputPath);
+                        SaveError = null;
+                    }
+                    catch (Exception ex)
+                    {
+                        SaveError = ex;
+                        Diagnostics.Log("Registrazione non salvata, la recupero al prossimo avvio: " + ex.Message);
+                    }
+                }
+                return File.Exists(OutputPath);
+            }
+        }
+
         public double ElapsedSeconds => clock.Elapsed.TotalSeconds;
 
         public void Dispose() => Stop();
@@ -171,6 +232,7 @@ namespace Cornetta.App
         private void StartSystem()
         {
             var device = AudioDevices.Default(enumerator!, DataFlow.Render);
+            GeneralOutputName = null;
             if (device == null)
             {
                 OutputName = null;
@@ -178,22 +240,58 @@ namespace Cornetta.App
                 return;
             }
             OutputName = device.FriendlyName;
-            var capture = new WasapiLoopbackCapture(device);
-            system = new SourceCapture("sistema", capture, pipeline!.System, NowFrame, OnFirstBlock, OnCaptureStopped);
-            system.Start();
+            system = OpenLoopback(device, pipeline!.System, "sistema", out keepAlive);
+            systemDeviceId = device.ID;
+            StartGeneralOutput(device);
+        }
+
+        /// <summary>
+        /// Chrome, Edge e Firefox (Meet, Teams web) suonano sul predefinito generale finché il sito non sceglie un'uscita:
+        /// se è diverso da quello delle chiamate si ascoltano tutti e due. Il microfono resta solo quello delle chiamate.
+        /// </summary>
+        private void StartGeneralOutput(MMDevice callOutput)
+        {
+            GeneralOutputName = null;
+            var general = AudioDevices.GeneralOutput(enumerator!, callOutput);
+            if (general == null) return;
             try
             {
-                // Silenzio sull'uscita: il loopback continua a mandare pacchetti anche quando nessuno parla.
-                keepAlive = new WasapiOut(device, AudioClientShareMode.Shared, false, 200);
-                keepAlive.Init(new SilenceProvider(capture.WaveFormat));
-                keepAlive.Play();
+                system2 = OpenLoopback(general, pipeline!.System2, "sistema 2", out keepAlive2);
+                GeneralOutputName = general.FriendlyName;
             }
             catch (Exception ex)
             {
-                keepAlive?.Dispose();
-                keepAlive = null;
-                Diagnostics.Log("Flusso di silenzio non avviato (resta il riempimento a orologio): " + ex.Message);
+                Diagnostics.Log("Seconda uscita non avviata: " + ex.Message);
             }
+        }
+
+        /// <summary>Loopback di un'uscita sulla linea del tempo, più il flusso di silenzio che lo tiene vivo.</summary>
+        private SourceCapture OpenLoopback(MMDevice device, CaptureTimeline timeline, string name, out WasapiOut? silence)
+        {
+            AudioDevices.OptOutOfDucking(device);
+            var capture = new WasapiLoopbackCapture(device);
+            var source = new SourceCapture(name, capture, timeline, NowFrame, OnFirstBlock, OnCaptureStopped);
+            try { source.Start(); }
+            catch
+            {
+                source.Dispose();
+                throw;
+            }
+            silence = null;
+            try
+            {
+                // Silenzio sull'uscita: il loopback continua a mandare pacchetti anche quando nessuno parla.
+                silence = new WasapiOut(device, AudioClientShareMode.Shared, false, 200);
+                silence.Init(new SilenceProvider(capture.WaveFormat));
+                silence.Play();
+            }
+            catch (Exception ex)
+            {
+                silence?.Dispose();
+                silence = null;
+                Diagnostics.Log("Flusso di silenzio non avviato su " + name + " (resta il riempimento a orologio): " + ex.Message);
+            }
+            return source;
         }
 
         private void StartMicrophone()
@@ -206,6 +304,7 @@ namespace Cornetta.App
             }
             try
             {
+                AudioDevices.OptOutOfDucking(device);
                 var capture = new WasapiCapture(device, true, 100);
                 mic = new SourceCapture("microfono", capture, pipeline!.Microphone, NowFrame, OnFirstBlock, OnCaptureStopped);
                 mic.Start();
@@ -224,11 +323,30 @@ namespace Cornetta.App
         {
             mic?.Dispose();
             mic = null;
+            StopSystem();
+        }
+
+        private void StopSystem()
+        {
             system?.Dispose();
             system = null;
-            try { keepAlive?.Stop(); } catch (Exception) { }
-            keepAlive?.Dispose();
-            keepAlive = null;
+            systemDeviceId = null;
+            StopSilence(ref keepAlive);
+            StopGeneralOutput();
+        }
+
+        private void StopGeneralOutput()
+        {
+            system2?.Dispose();
+            system2 = null;
+            StopSilence(ref keepAlive2);
+        }
+
+        private static void StopSilence(ref WasapiOut? silence)
+        {
+            try { silence?.Stop(); } catch (Exception) { }
+            silence?.Dispose();
+            silence = null;
         }
 
         private void OnFirstBlock(string source)
@@ -250,7 +368,11 @@ namespace Cornetta.App
                 try
                 {
                     long upTo = NowFrame() - latency;
-                    if (upTo > pipeline!.RenderedFrames) pipeline.Render(upTo);
+                    if (upTo > pipeline!.RenderedFrames)
+                    {
+                        long skipped = pipeline.CatchUp(upTo);
+                        if (skipped > 0) Diagnostics.Log("Orologio saltato di " + Diagnostics.F(skipped / (double)Rate, 1) + " s: salto il buco");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -280,12 +402,15 @@ namespace Cornetta.App
 
         // MARK: - Cambio dispositivo (es. cuffie collegate a metà chiamata)
 
-        private void OnDefaultDeviceChanged(DataFlow flow)
+        private void OnDefaultDeviceChanged(DeviceRestart restart)
         {
             if (!running) return;
             lock (control)
             {
-                if (flow == DataFlow.Capture) pendingMicRestart = true; else pendingSystemRestart = true;
+                if (restart == DeviceRestart.Microphone) pendingMicRestart = true;
+                else if (restart == DeviceRestart.CallOutput) pendingSystemRestart = true;
+                else if (restart == DeviceRestart.GeneralOutput) pendingSystem2Restart = true;
+                else return;
                 // Windows manda più notifiche di fila: si riavvia una volta sola, dopo mezzo secondo.
                 restartDebounce?.Dispose();
                 restartDebounce = new Timer(_ => ApplyPendingRestarts(), null, 500, Timeout.Infinite);
@@ -300,6 +425,7 @@ namespace Cornetta.App
             {
                 if (source == mic) pendingMicRestart = true;
                 if (source == system) pendingSystemRestart = true;
+                if (source == system2) pendingSystem2Restart = true;
                 restartDebounce?.Dispose();
                 restartDebounce = new Timer(_ => ApplyPendingRestarts(), null, 500, Timeout.Infinite);
             }
@@ -319,22 +445,33 @@ namespace Cornetta.App
             lock (control)
             {
                 if (!running) return;
+                if (pendingSystem2Restart && !pendingSystemRestart && DeviceChange.CallOutputMoved(CallOutputId(), systemDeviceId))
+                {
+                    // Senza un'uscita per le Comunicazioni quella delle chiamate è il predefinito generale: è cambiata lei.
+                    pendingSystemRestart = true;
+                }
                 if (pendingSystemRestart)
                 {
                     pendingSystemRestart = false;
-                    system?.Dispose();
-                    system = null;
-                    try { keepAlive?.Stop(); } catch (Exception) { }
-                    keepAlive?.Dispose();
-                    keepAlive = null;
+                    pendingSystem2Restart = false;
+                    StopSystem();
                     try { StartSystem(); }
                     catch (Exception ex)
                     {
-                        system?.Dispose();
-                        system = null;
+                        StopSystem();
                         Diagnostics.Log("Riavvio del sistema non riuscito, riprovo fra poco: " + ex.Message);
                     }
-                    Diagnostics.Log("Uscita: " + (OutputName ?? "nessuna"));
+                    Diagnostics.Log("Uscita: " + (OutputName ?? "nessuna") + (GeneralOutputName != null ? " + " + GeneralOutputName : ""));
+                }
+                if (pendingSystem2Restart)
+                {
+                    // Solo la seconda uscita: la voce degli altri sull'uscita delle chiamate non si interrompe.
+                    pendingSystem2Restart = false;
+                    StopGeneralOutput();
+                    GeneralOutputName = null;
+                    var callOutput = system != null ? AudioDevices.Default(enumerator!, DataFlow.Render) : null;
+                    if (callOutput != null) StartGeneralOutput(callOutput);
+                    Diagnostics.Log("Seconda uscita: " + (GeneralOutputName ?? "nessuna"));
                 }
                 if (pendingMicRestart && useMicrophone)
                 {
@@ -379,9 +516,14 @@ namespace Cornetta.App
                     restart = true;
                 }
                 // Senza il flusso di silenzio il loopback tace di suo: solo con il silenzio attivo è un guasto.
-                if (system != null && keepAlive != null && system.SecondsSinceLastData > 3)
+                if (Stalled(system, keepAlive))
                 {
                     pendingSystemRestart = true;
+                    restart = true;
+                }
+                if (Stalled(system2, keepAlive2))
+                {
+                    pendingSystem2Restart = true;
                     restart = true;
                 }
                 if (restart)
@@ -392,6 +534,17 @@ namespace Cornetta.App
             }
             if (restart) ApplyPendingRestarts();
         }
+
+        /// <summary>L'ID dell'uscita che AudioDevices.Default sceglie adesso per le chiamate, o null se non c'è.</summary>
+        private string? CallOutputId()
+        {
+            var device = AudioDevices.Default(enumerator!, DataFlow.Render);
+            try { return device?.ID; }
+            finally { device?.Dispose(); }
+        }
+
+        private static bool Stalled(SourceCapture? source, WasapiOut? silence) =>
+            source != null && silence != null && source.SecondsSinceLastData > 3;
     }
 
     /// <summary>Una cattura WASAPI che converte, ricampiona a 48 kHz e scrive sulla linea del tempo.</summary>
@@ -470,20 +623,21 @@ namespace Cornetta.App
         }
     }
 
-    /// <summary>Notifiche di Windows sul cambio del dispositivo delle chiamate.</summary>
+    /// <summary>Notifiche di Windows sul cambio dei dispositivi che Cornetta usa.</summary>
     internal sealed class DeviceWatcher : IMMNotificationClient
     {
-        private readonly Action<DataFlow> onDefaultChanged;
+        private readonly Action<DeviceRestart> onDefaultChanged;
 
-        public DeviceWatcher(Action<DataFlow> onDefaultChanged) { this.onDefaultChanged = onDefaultChanged; }
+        public DeviceWatcher(Action<DeviceRestart> onDefaultChanged) { this.onDefaultChanged = onDefaultChanged; }
 
         public void OnDefaultDeviceChanged(DataFlow flow, Role role, string defaultDeviceId)
         {
-            // Cornetta segue il dispositivo delle chiamate: un cambio del solo predefinito generale non la tocca.
-            if (role != AudioDevices.CallRole) return;
+            // Cornetta segue i dispositivi delle chiamate e, per l'uscita, anche il predefinito generale (Recorder.StartSystem).
+            var restart = DeviceChange.For(flow == DataFlow.Capture, role == AudioDevices.CallRole, role == Role.Console);
+            if (restart == DeviceRestart.None) return;
             ThreadPool.QueueUserWorkItem(_ =>
             {
-                try { onDefaultChanged(flow); }
+                try { onDefaultChanged(restart); }
                 catch (Exception ex) { Diagnostics.Log("Cambio dispositivo: " + ex.Message); }
             });
         }

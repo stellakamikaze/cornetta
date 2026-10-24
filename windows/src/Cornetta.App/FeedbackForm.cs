@@ -47,7 +47,7 @@ namespace Cornetta.App
     /// <summary>Finestra del feedback. Testi identici a FeedbackView in Sources/Cornetta/Feedback.swift.</summary>
     internal sealed class FeedbackForm : Form
     {
-        private readonly string? microphone;
+        private string? microphone;
         private readonly float scale;
         private readonly TableLayoutPanel formPanel;
         private readonly TableLayoutPanel sentPanel;
@@ -59,9 +59,11 @@ namespace Cornetta.App
         private readonly TextBox previewBox;
         private readonly Label errorLabel;
         private readonly Button sendButton;
-        private readonly string diagnostics;
+        /// <summary>Null finché CollectDiagnostics non ha finito.</summary>
+        private string? diagnostics;
         private bool sending;
 
+        /// <param name="microphone">Il microfono della registrazione in corso; senza, si legge quello delle chiamate.</param>
         public FeedbackForm(string? microphone)
         {
             this.microphone = microphone;
@@ -79,7 +81,6 @@ namespace Cornetta.App
             AutoSizeMode = AutoSizeMode.GrowAndShrink;
             Padding = new Padding(Px(20));
             Icon = TrayIcons.App;
-            diagnostics = AppInfo.DiagnosticsText(microphone);
 
             int width = Px(480);
 
@@ -117,7 +118,7 @@ namespace Cornetta.App
                 Margin = new Padding(0, Px(12), 0, 0),
             };
             diagnosticsCheck.Height = TextRenderer.MeasureText(diagnosticsCheck.Text, Font, new Size(width - Px(20), int.MaxValue), TextFormatFlags.WordBreak).Height + Px(6);
-            diagnosticsCheck.CheckedChanged += (_, __) => UpdateDiagnosticsVisibility();
+            diagnosticsCheck.CheckedChanged += (_, __) => { UpdateDiagnosticsVisibility(); UpdateSendButton(); };
 
             previewLink = new LinkLabel { Text = "Vedi cosa viene inviato", AutoSize = true, Margin = new Padding(Px(18), Px(2), 0, 0) };
             previewLink.LinkClicked += (_, __) => { previewBox!.Visible = !previewBox.Visible; };
@@ -131,7 +132,7 @@ namespace Cornetta.App
                 Width = width,
                 Height = Px(120),
                 Font = new Font("Consolas", 8.25f),
-                Text = diagnostics,
+                Text = "Raccolgo le informazioni…",
                 Visible = false,
                 Margin = new Padding(0, Px(6), 0, 0),
                 AccessibleName = "Informazioni tecniche che vengono inviate",
@@ -193,12 +194,40 @@ namespace Cornetta.App
             Controls.Add(formPanel);
             Controls.Add(sentPanel);
             AcceptButton = null;
-            Shown += (_, __) =>
+            Shown += async (_, __) =>
             {
                 SetCue(nameBox, "Nome (facoltativo)");
                 SetCue(emailBox, "Email per la risposta (facoltativa)");
                 messageBox.Focus();
+                await CollectDiagnostics();
             };
+        }
+
+        /// <summary>Dispositivi, sessioni audio e log si leggono dopo l'apertura, fuori dal thread dell'interfaccia.</summary>
+        private async Task CollectDiagnostics()
+        {
+            string? mic = microphone;
+            string text;
+            try
+            {
+                var collected = await Task.Run(() =>
+                {
+                    string? name = mic ?? AudioDevices.Describe().Input;
+                    return (name, AppInfo.DiagnosticsText(name));
+                });
+                mic = collected.name;
+                text = collected.Item2;
+            }
+            catch (Exception ex)
+            {
+                Diagnostics.Log("Informazioni tecniche non raccolte: " + ex.Message);
+                text = "";
+            }
+            if (IsDisposed) return;
+            microphone = mic;
+            diagnostics = text;
+            previewBox.Text = text;
+            UpdateSendButton();
         }
 
         private int Px(float value) => (int)Math.Round(value * scale);
@@ -237,7 +266,8 @@ namespace Cornetta.App
 
         private void UpdateSendButton()
         {
-            sendButton.Enabled = !sending && messageBox.Text.Trim().Length >= 2;
+            // Con la diagnostica accesa si aspetta che sia pronta.
+            sendButton.Enabled = !sending && messageBox.Text.Trim().Length >= 2 && (diagnostics != null || !diagnosticsCheck.Checked);
         }
 
         private async Task Submit()
@@ -249,7 +279,7 @@ namespace Cornetta.App
             Settings.FeedbackName = nameBox.Text.Trim();
             Settings.FeedbackEmail = emailBox.Text.Trim();
             string? error = await FeedbackSender.SendAsync(messageBox.Text, nameBox.Text.Trim(), emailBox.Text.Trim(),
-                diagnosticsCheck.Checked ? diagnostics : null, microphone);
+                diagnosticsCheck.Checked ? diagnostics : null, FeedbackPayload.MicrophoneToSend(microphone, diagnosticsCheck.Checked));
             sending = false;
             sendButton.Text = "Invia feedback";
             UpdateSendButton();

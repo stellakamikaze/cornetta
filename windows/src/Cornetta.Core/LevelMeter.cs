@@ -48,12 +48,15 @@ namespace Cornetta.Core
         public float SystemPeakRms { get; private set; }
         public double Seconds { get; private set; }
         public bool HadMicrophone { get; private set; }
+        /// <summary>Da quanti secondi l'audio di sistema è zero esatto (vedi SilenceWatch).</summary>
+        public double SystemSilentSeconds { get; private set; }
 
         public void Record(float micRms, float systemRms, int frames, double sampleRate, bool hasMicrophone)
         {
             MicPeakRms = Math.Max(MicPeakRms, micRms);
             SystemPeakRms = Math.Max(SystemPeakRms, systemRms);
             Seconds += frames / sampleRate;
+            SystemSilentSeconds = systemRms > 0 ? 0 : SystemSilentSeconds + frames / sampleRate;
             HadMicrophone = HadMicrophone || hasMicrophone;
         }
 

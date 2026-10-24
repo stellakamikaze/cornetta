@@ -17,7 +17,8 @@ namespace Cornetta.App
     /// 1. legge i dispositivi audio e, se ci sono, li avvia per un secondo e mezzo;
     /// 2. controlla che l'encoder AAC di Media Foundation sia disponibile;
     /// 3. scrive un file .m4a (e un .wav) da un segnale sintetico passato per linea del tempo,
-    ///    livellatore e mixer, poi lo rilegge e ne controlla durata e livello.
+    ///    livellatore, mixer e WAV di lavoro, poi lo rilegge e ne controlla durata e livello;
+    /// 4. recupera una registrazione interrotta (WAV di lavoro mai chiuso, come dopo un crash).
     /// Esce con 0 se tutto va bene, con 1 se qualcosa non va.
     /// </summary>
     internal static class SelfTest
@@ -68,6 +69,7 @@ namespace Cornetta.App
             Directory.CreateDirectory(folder);
             if (aac) CheckSyntheticFile(Path.Combine(folder, "sintetico.m4a"));
             CheckSyntheticFile(Path.Combine(folder, "sintetico.wav"));
+            CheckRecovery(folder);
             Line("File di prova in " + folder);
         }
 
@@ -85,16 +87,17 @@ namespace Cornetta.App
                 Line("Nessun dispositivo audio su questa macchina: salto la cattura reale (normale su un server CI).");
                 return;
             }
-            string path = Path.Combine(Path.GetTempPath(), "cornetta-selftest-cattura" + AudioFileSink.Extension);
+            string path = Path.Combine(Path.GetTempPath(), "cornetta-selftest-cattura" + RecordingFiles.Extension);
             try
             {
-                var recorder = new Recorder(path);
+                var recorder = new Recorder(path, Path.Combine(Path.GetTempPath(), "cornetta-selftest-lavoro"));
                 recorder.Start(MicrophonePrivacy.IsAllowed());
-                Line("Cattura avviata: microfono " + (recorder.MicrophoneName ?? "nessuno") + ", uscita " + (recorder.OutputName ?? "nessuna"));
+                Line("Cattura avviata: microfono " + (recorder.MicrophoneName ?? "nessuno") + ", uscita " + (recorder.OutputName ?? "nessuna")
+                     + (recorder.GeneralOutputName != null ? " + predefinita generale " + recorder.GeneralOutputName : ""));
                 Thread.Sleep(1500);
                 var stats = recorder.Stop();
                 Line("Cattura reale: " + Diagnostics.F(stats.Seconds, 2) + " s scritti, picco microfono " + Diagnostics.F(stats.MicPeakRms, 4)
-                     + ", picco sistema " + Diagnostics.F(stats.SystemPeakRms, 4) + " → " + path);
+                     + ", picco sistema " + Diagnostics.F(stats.SystemPeakRms, 4) + " → " + recorder.OutputPath);
                 if (stats.Seconds < 1.0) Fail("La cattura reale ha scritto meno di un secondo");
             }
             catch (Exception ex)
@@ -105,7 +108,7 @@ namespace Cornetta.App
 
         private static bool CheckAac()
         {
-            if (AudioFileSink.AacAvailable)
+            if (RecordingFiles.AacAvailable)
             {
                 var rates = MediaFoundationEncoder.GetEncodeBitrates(AudioSubtypes.MFAudioFormat_AAC, 48000, 2);
                 Line("Encoder AAC disponibile (bitrate a 48 kHz stereo: " + string.Join(", ", rates.Select(r => r.ToString(CultureInfo.InvariantCulture))) + ")");
@@ -122,7 +125,8 @@ namespace Cornetta.App
         private static void CheckSyntheticFile(string path)
         {
             const int seconds = 3;
-            using (var sink = AudioFileSink.Create(path))
+            string working = Path.Combine(Path.GetDirectoryName(path)!, "In corso", Path.GetFileNameWithoutExtension(path) + "-" + Path.GetExtension(path).TrimStart('.') + ".wav");
+            using (var sink = new WavRecordingSink(working))
             {
                 var pipeline = new RecordingPipeline(sink);
                 var micResampler = new StreamResampler(44_100, 48_000, 1);
@@ -153,6 +157,8 @@ namespace Cornetta.App
                 Line("Mix sintetico: guadagno voce finale " + Diagnostics.F(pipeline.MicGain, 1) + ", buchi del sistema riempiti " + pipeline.System.GapsFilled);
                 if (pipeline.MicGain < 4) Fail("Il livellatore non ha alzato la voce sintetica (guadagno " + Diagnostics.F(pipeline.MicGain, 1) + ")");
             }
+            string saved = RecordingFiles.Finalize(working, path);
+            if (saved != path) { Fail("Conversione di " + Path.GetFileName(path) + " non riuscita: salvato " + Path.GetFileName(saved)); return; }
 
             var info = new FileInfo(path);
             if (!info.Exists || info.Length < 2000)
@@ -186,6 +192,49 @@ namespace Cornetta.App
             catch (Exception ex)
             {
                 Fail("Rilettura di " + Path.GetFileName(path) + " non riuscita: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Tre secondi nel WAV di lavoro, poi il processo «muore»: si copia quello che c'è sul disco senza chiudere il file.
+        /// Il recupero dell'avvio deve salvare una registrazione di almeno 2,5 secondi.
+        /// </summary>
+        private static void CheckRecovery(string folder)
+        {
+            string workingFolder = Path.Combine(folder, "interrotta");
+            string working = Path.Combine(workingFolder, "Chiamata interrotta.wav");
+            try
+            {
+                using (var sink = new WavRecordingSink(Path.Combine(folder, "aperto.wav")))
+                {
+                    int phase = 0;
+                    for (int block = 0; block < 300; block++)
+                    {
+                        var samples = new float[480 * 2];
+                        for (int i = 0; i < 480; i++, phase++) samples[i * 2] = samples[i * 2 + 1] = 0.3f * (float)Math.Sin(2 * Math.PI * 440 * phase / 48_000.0);
+                        sink.Write(samples, 480);
+                    }
+                    Directory.CreateDirectory(workingFolder);
+                    using (var source = new FileStream(sink.Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    using (var target = File.Create(working))
+                    {
+                        source.CopyTo(target);
+                    }
+                }
+                var saved = RecordingFiles.Recover(WorkingFiles.Leftovers(workingFolder), folder);
+                if (saved.Count != 1) { Fail("Recupero della registrazione interrotta non riuscito"); return; }
+                string path = Path.Combine(folder, saved[0]);
+                using (var reader = path.EndsWith(".wav", StringComparison.OrdinalIgnoreCase) ? (WaveStream)new WaveFileReader(path) : new MediaFoundationReader(path))
+                {
+                    double duration = reader.TotalTime.TotalSeconds;
+                    Line("Recupero: " + saved[0] + ", " + Diagnostics.F(duration, 2) + " s");
+                    if (duration < 2.5) Fail("La registrazione recuperata dura solo " + Diagnostics.F(duration, 2) + " s");
+                }
+                if (File.Exists(working)) Fail("Il recupero ha lasciato il WAV di lavoro");
+            }
+            catch (Exception ex)
+            {
+                Fail("Recupero della registrazione interrotta: " + ex.Message);
             }
         }
 
@@ -231,7 +280,7 @@ namespace Cornetta.App
             string secondsText = SelfTest.ArgumentAfter(args, "--record") ?? "10";
             double seconds = double.TryParse(secondsText, NumberStyles.Float, CultureInfo.InvariantCulture, out var s) ? s : 10;
             string output = SelfTest.ArgumentAfter(args, "--out")
-                ?? FileNaming.RecordingPath(AppInfo.RecordingsDirectory, DateTime.Now, null, AudioFileSink.Extension);
+                ?? FileNaming.RecordingPath(AppInfo.RecordingsDirectory, DateTime.Now, null, RecordingFiles.Extension);
             try
             {
                 string json = "";
@@ -243,6 +292,7 @@ namespace Cornetta.App
                         + " · uscita " + (recorder.OutputName ?? "nessuna") + " → " + output);
                     Thread.Sleep(TimeSpan.FromSeconds(seconds));
                     var stats = recorder.Stop();
+                    output = recorder.OutputPath;
                     json = stats.ToJson();
                 }).Wait();
                 File.WriteAllText(output + ".json", json);

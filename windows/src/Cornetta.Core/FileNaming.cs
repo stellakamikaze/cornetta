@@ -15,9 +15,14 @@ namespace Cornetta.Core
         /// </summary>
         public static string RecordingPath(string directory, DateTime date, Func<string, bool>? fileExists = null, string extension = ".m4a")
         {
-            var exists = fileExists ?? File.Exists;
             string stamp = date.ToString("yyyy-MM-dd HH.mm", CultureInfo.InvariantCulture);
-            string baseName = "Chiamata " + stamp;
+            return UniquePath(directory, "Chiamata " + stamp, extension, fileExists);
+        }
+
+        /// <summary>«nome.m4a» nella cartella, oppure «nome (2).m4a» e così via se esiste già.</summary>
+        public static string UniquePath(string directory, string baseName, string extension, Func<string, bool>? fileExists = null)
+        {
+            var exists = fileExists ?? File.Exists;
             string candidate = Path.Combine(directory, baseName + extension);
             int counter = 2;
             while (exists(candidate))

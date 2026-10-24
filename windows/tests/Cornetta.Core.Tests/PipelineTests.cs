@@ -87,6 +87,61 @@ namespace Cornetta.Core.Tests
             int firstSound = left.FindIndex(s => s != 0);
             Assert.Equal(2 * 48_000, firstSound);
         }
+
+        [Fact]
+        public void SecondOutputIsMixedIn()
+        {
+            // La chiamata suona sul predefinito generale, l'uscita delle chiamate tace: nel file c'è il tono.
+            var sink = new MemorySink();
+            var pipeline = new RecordingPipeline(sink);
+            for (long t = 480; t <= 48_000; t += 480)
+            {
+                pipeline.System.Write(t, new float[960]);
+                pipeline.System2.Write(t, Ones(480, 2, 0.3f));
+            }
+            pipeline.Render(48_000);
+            Assert.All(sink.Left, s => Assert.Equal(0.3f, s, 4));
+            Assert.True(pipeline.Stats.SystemPeakRms > 0.29f);
+        }
+
+        [Fact]
+        public void ClockJumpIsSkippedNotWritten()
+        {
+            var sink = new MemorySink();
+            var pipeline = new RecordingPipeline(sink);
+            for (long t = 480; t <= 48_000; t += 480)
+            {
+                pipeline.System.Write(t, Ones(480, 2, 0.5f));
+                pipeline.CatchUp(t - 16_800);
+            }
+            // Un'ora di processo congelato; al risveglio il primo blocco arriva prima del mixer (caso peggiore).
+            long hour = 3600L * 48_000;
+            pipeline.System.Write(hour, Ones(480, 2, 0.25f));
+            Assert.True(pipeline.System.WritePosition < 48_000 + 11 * 48_000);
+            int before = sink.Left.Count;
+            long skipped = pipeline.CatchUp(hour - 16_800);
+            Assert.InRange(sink.Left.Count - before, 1, RecordingPipeline.MaxCatchUpSeconds * 48_000);
+            Assert.True(skipped > 3590L * 48_000);
+            for (long t = hour + 480; t <= hour + 48_000; t += 480)
+            {
+                pipeline.System.Write(t, Ones(480, 2, 0.25f));
+                pipeline.CatchUp(t - 16_800);
+            }
+            pipeline.CatchUp(hour + 48_000);
+            Assert.Equal(0.25f, sink.Left[sink.Left.Count - 1], 4);
+            Assert.True(sink.Left.Count < 4 * 48_000);
+        }
+
+        [Fact]
+        public void LongGapAddsBoundedSilence()
+        {
+            var timeline = new CaptureTimeline(2);
+            timeline.Write(480, Ones(480, 2));
+            timeline.Write(3600L * 48_000, Ones(480, 2));
+            Assert.Equal(480 + timeline.MaxSilenceFrames + 480, timeline.WritePosition);
+            timeline.Discard(3600L * 48_000);
+            Assert.Equal(3600L * 48_000, timeline.WritePosition);
+        }
     }
 
     public class AudioConversionTests
@@ -171,6 +226,17 @@ namespace Cornetta.Core.Tests
                 "{\"message\":\"Ciao \\\"Federico\\\"\\nriga due\",\"name\":\"Mario\",\"email\":\"\",\"diagnostics\":\"log\",\"platform\":\"windows\"," +
                 "\"app\":{\"version\":\"0.3.0\",\"build\":\"12\",\"os\":\"Windows 11 23H2\",\"arch\":\"x64\",\"microphone\":\"Microfono (Realtek)\"}}",
                 json);
+        }
+
+        [Fact]
+        public void MicrophoneTravelsOnlyWithDiagnostics()
+        {
+            Assert.Null(FeedbackPayload.MicrophoneToSend("AirPods di Mario", false));
+            Assert.Equal("AirPods di Mario", FeedbackPayload.MicrophoneToSend("AirPods di Mario", true));
+            var app = new FeedbackAppInfo { Version = "0.3.0", Microphone = FeedbackPayload.MicrophoneToSend("AirPods di Mario", false) ?? "" };
+            string json = FeedbackPayload.ToJson("ciao", "", "", null, app);
+            Assert.Contains("\"microphone\":\"\"", json);
+            Assert.DoesNotContain("Mario", json);
         }
 
         [Fact]

@@ -12,6 +12,8 @@ namespace Cornetta.Core
     /// - se la sorgente corre avanti rispetto all'orologio (deriva fra i due dispositivi),
     ///   scarta i campioni in eccesso e si riallinea.
     /// Così microfono e sistema restano allineati anche dopo minuti di silenzio.
+    /// Un buco oltre MaxSilenceFrames vuol dire che il mixer era fermo (processo congelato): ogni blocco ne riempie
+    /// al massimo MaxSilenceFrames, e il mixer lo salta con Discard (RecordingPipeline.CatchUp) invece di scrivere ore di zeri.
     /// Chi legge deve stare indietro rispetto all'orologio più di GapToleranceFrames (il mixer sta a 350 ms):
     /// altrimenti un blocco che arriva dopo un silenzio viene accodato invece che messo al suo posto.
     /// Thread safe: le catture scrivono dai loro thread, il mixer legge dal suo.
@@ -30,6 +32,7 @@ namespace Cornetta.Core
             buffer = new float[sampleRate * channels];
             GapToleranceFrames = sampleRate * 120 / 1000;
             AheadToleranceFrames = sampleRate * 80 / 1000;
+            MaxSilenceFrames = sampleRate * 10L;
         }
 
         public int Channels { get; }
@@ -38,6 +41,8 @@ namespace Cornetta.Core
         public long GapToleranceFrames { get; set; }
         /// <summary>Oltre questo anticipo rispetto all'orologio la sorgente viene riallineata.</summary>
         public long AheadToleranceFrames { get; set; }
+        /// <summary>Silenzio massimo aggiunto da un solo blocco: il buffer non cresce di ore dopo un salto dell'orologio.</summary>
+        public long MaxSilenceFrames { get; set; }
 
         /// <summary>Quante volte un silenzio della sorgente è stato riempito di zeri.</summary>
         public int GapsFilled { get; private set; }
@@ -67,7 +72,7 @@ namespace Cornetta.Core
                 int skip = 0;
                 if (expectedStart - writePos > GapToleranceFrames)
                 {
-                    AppendSilence((int)Math.Min(expectedStart - writePos, int.MaxValue / Channels));
+                    AppendSilence((int)Math.Min(expectedStart - writePos, MaxSilenceFrames));
                     GapsFilled++;
                 }
                 else if (writePos - expectedStart > AheadToleranceFrames)
@@ -95,6 +100,16 @@ namespace Cornetta.Core
                 Consume(available);
                 readFrame = Math.Max(readFrame, upTo);
                 return output;
+            }
+        }
+
+        /// <summary>Butta i frame fino alla posizione <paramref name="upTo"/> (esclusa) senza restituirli.</summary>
+        public void Discard(long upTo)
+        {
+            lock (gate)
+            {
+                Consume((int)Math.Min(Math.Max(0, upTo - readFrame), frameCount));
+                readFrame = Math.Max(readFrame, upTo);
             }
         }
 
