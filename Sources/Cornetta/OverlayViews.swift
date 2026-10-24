@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Pannello mostrato durante la registrazione.
@@ -121,5 +122,11 @@ struct NoticeView: View {
         }
         .frame(width: 360)
         .panelStyle()
+        // Il pannello non prende il focus: senza annuncio VoiceOver non dice che è comparso.
+        .onAppear {
+            NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
+                                 userInfo: [.announcement: "\(title). \(message)",
+                                            .priority: NSAccessibilityPriorityLevel.high.rawValue])
+        }
     }
 }

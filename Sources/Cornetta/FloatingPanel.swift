@@ -25,10 +25,11 @@ final class FloatingPanel: NSPanel {
         }
         setFrameAutosaveName(autosaveName)
         // SwiftUI calcola la dimensione dopo: a ogni ridimensionamento il pannello resta dentro lo schermo.
-        NotificationCenter.default.addObserver(forName: NSWindow.didResizeNotification, object: self, queue: .main) { [weak self] _ in
-            self?.keepOnScreen()
-        }
+        // Osservatore con selettore: sparisce da solo con il pannello, uno nuovo a ogni avviso.
+        NotificationCenter.default.addObserver(self, selector: #selector(didResize), name: NSWindow.didResizeNotification, object: self)
     }
+
+    @objc private func didResize(_ notification: Notification) { keepOnScreen() }
 
     override var canBecomeKey: Bool { true }
 

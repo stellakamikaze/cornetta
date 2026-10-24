@@ -25,13 +25,7 @@ public enum CallDetector {
 
     /// Processi che usano il microfono adesso, letti da Core Audio (macOS 14+).
     public static func microphoneClients() -> [MicrophoneClient] {
-        var addr = address(kAudioHardwarePropertyProcessObjectList)
-        var size: UInt32 = 0
-        guard AudioObjectGetPropertyDataSize(CoreAudio.system, &addr, 0, nil, &size) == noErr, size > 0 else { return [] }
-        var objects = [AudioObjectID](repeating: 0, count: Int(size) / MemoryLayout<AudioObjectID>.size)
-        guard AudioObjectGetPropertyData(CoreAudio.system, &addr, 0, nil, &size, &objects) == noErr else { return [] }
-
-        return objects.compactMap { object in
+        CoreAudio.objects(CoreAudio.system, kAudioHardwarePropertyProcessObjectList).compactMap { object in
             let running = (try? CoreAudio.value(object, kAudioProcessPropertyIsRunningInput, initial: UInt32(0))) ?? 0
             guard running != 0 else { return nil }
             let pid = (try? CoreAudio.value(object, kAudioProcessPropertyPID, initial: pid_t(0))) ?? 0

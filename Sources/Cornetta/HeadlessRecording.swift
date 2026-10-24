@@ -35,6 +35,7 @@ enum HeadlessRecording {
         var report: [String: String] = ["file": output.path, "microphoneAllowed": String(micAllowed)]
         for cycle in 1..<max(cycles, 1) {
             let extra = CallRecorder(outputURL: output.deletingPathExtension().appendingPathExtension("ciclo\(cycle).m4a"))
+            extra.callActive = true
             do {
                 try extra.start(useMicrophone: micAllowed)
                 let end = Date().addingTimeInterval(seconds)
@@ -44,13 +45,15 @@ enum HeadlessRecording {
                 extra.onFinalized = { _ in done = true }
                 let seconds = extra.stop().seconds
                 while !done { RunLoop.main.run(until: Date().addingTimeInterval(0.1)) }
-                report["ciclo\(cycle)"] = "callbacks=\(extra.callbackCount) restarts=\(extra.restartCount) seconds=\(String(format: "%.2f", seconds))"
+                report["ciclo\(cycle)"] = "callbacks=\(extra.callbackCount) restarts=\(extra.restartCount) zeroResets=\(extra.zeroResets) seconds=\(String(format: "%.2f", seconds))"
             } catch {
                 report["ciclo\(cycle)"] = error.localizedDescription
             }
         }
         let tracks = value("--tracks").map { URL(fileURLWithPath: $0, isDirectory: true) }
         let recorder = CallRecorder(outputURL: output, debugDirectory: debug, tracksDirectory: tracks)
+        // Senza interfaccia non c'è rilevamento delle chiamate: il test prova anche il recupero dagli zeri (#3820).
+        recorder.callActive = true
         do {
             try recorder.start(useMicrophone: micAllowed)
             report["microphone"] = recorder.microphoneName ?? "nessuno"
@@ -62,6 +65,7 @@ enum HeadlessRecording {
             report["wallSeconds"] = String(format: "%.2f", seconds - end.timeIntervalSinceNow)
             report["callbacks"] = String(recorder.callbackCount)
             report["restarts"] = String(recorder.restartCount)
+            report["zeroResets"] = String(recorder.zeroResets)
             var finalized = false
             recorder.onFinalized = { result in
                 if case .failure(let error) = result { report["error"] = error.localizedDescription }

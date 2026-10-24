@@ -8,6 +8,7 @@ import SwiftUI
 enum LibraryWindow {
     private static var window: NSWindow?
     private static var delegate: WindowDelegate?
+    private static var spaceMonitor: Any?
 
     static func show(select id: String? = nil) {
         Library.shared.reload()
@@ -25,11 +26,26 @@ enum LibraryWindow {
             window.delegate = delegate
             self.delegate = delegate
             self.window = window
+            spaceMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                playPause(on: event) ? nil : event
+            }
         }
         // Finché la finestra è aperta Cornetta compare nel Dock e in ⌘-Tab, come un'app normale.
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    /// Spazio = ascolta o pausa, ma solo se non si sta scrivendo: una scorciatoia sul pulsante
+    /// passerebbe prima del campo di ricerca e ruberebbe lo spazio fra le parole.
+    private static func playPause(on event: NSEvent) -> Bool {
+        guard event.keyCode == 49, !event.isARepeat,
+              event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty,
+              let window, event.window === window, !(window.firstResponder is NSText),
+              let id = LibrarySelection.shared.selected,
+              let recording = Library.shared.recordings.first(where: { $0.id == id }) else { return false }
+        AudioPlayer.shared.toggle(recording)
+        return true
     }
 
     final class WindowDelegate: NSObject, NSWindowDelegate {
@@ -68,12 +84,14 @@ final class AudioPlayer: ObservableObject {
         if let time { player.currentTime = time }
         player.play()
         isPlaying = true
+        currentTime = player.currentTime
         timer?.invalidate()
+        // Gira solo mentre suona: in pausa o a fine file la finestra non si ridisegna più.
         timer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self, let player = self.player else { return }
-                self.currentTime = player.currentTime
-                if !player.isPlaying { self.isPlaying = false }
+                if abs(player.currentTime - self.currentTime) >= 0.1 { self.currentTime = player.currentTime }
+                if !player.isPlaying { self.pause() }
             }
         }
     }
@@ -85,12 +103,15 @@ final class AudioPlayer: ObservableObject {
     func pause() {
         player?.pause()
         isPlaying = false
+        timer?.invalidate()
+        timer = nil
     }
 
     func stop() {
         player?.stop()
         player = nil
         timer?.invalidate()
+        timer = nil
         isPlaying = false
         playingID = nil
         currentTime = 0
@@ -105,10 +126,7 @@ struct LibraryView: View {
     private var filtered: [Library.Recording] {
         let query = search.trimmingCharacters(in: .whitespaces).lowercased()
         guard !query.isEmpty else { return library.recordings }
-        return library.recordings.filter { recording in
-            library.title(for: recording).lowercased().contains(query)
-                || (library.transcripts[recording.id]?.plainText.lowercased().contains(query) ?? false)
-        }
+        return library.recordings.filter { library.matches($0, query: query) }
     }
 
     var body: some View {
@@ -234,7 +252,6 @@ struct RecordingDetail: View {
                     .background(Color.accentColor.opacity(0.12), in: Circle())
             }
             .buttonStyle(.plain)
-            .keyboardShortcut(.space, modifiers: [])
             .help(playingThis && player.isPlaying ? "Pausa" : "Ascolta")
 
             VStack(alignment: .leading, spacing: 2) {
@@ -253,7 +270,7 @@ struct RecordingDetail: View {
             }
             Menu {
                 Button("Mostra nel Finder") { NSWorkspace.shared.activateFileViewerSelecting([recording.url]) }
-                if transcript != nil, SpeechEngine.isAvailable {
+                if transcript != nil, SpeechEngine.isAvailable, !inProgress {
                     Button("Trascrivi di nuovo") { library.enqueue(recording.url) }
                 }
                 Divider()
@@ -268,6 +285,14 @@ struct RecordingDetail: View {
         .padding(.vertical, 16)
     }
 
+    /// In coda o in trascrizione: «Trascrivi di nuovo» rifarebbe lo stesso lavoro.
+    private var inProgress: Bool {
+        switch library.status(recording) {
+        case .queued, .transcribing: return true
+        default: return false
+        }
+    }
+
     private var meta: String {
         var parts = ["Durata \(TranscriptFormatter.timestamp(recording.duration))"]
         if playingThis { parts.insert(TranscriptFormatter.timestamp(player.currentTime), at: 0) }
@@ -280,7 +305,7 @@ struct RecordingDetail: View {
         switch library.status(recording) {
         case .done:
             if let transcript, !transcript.segments.isEmpty {
-                TranscriptView(turns: TranscriptFormatter.turns(transcript.segments), recording: recording, player: player)
+                TranscriptView(turns: library.turns(for: recording), recording: recording, player: player)
             } else {
                 ContentUnavailableView("Nessuna voce riconosciuta", systemImage: "waveform.slash",
                                        description: Text("La registrazione sembra vuota o troppo bassa."))
@@ -386,6 +411,7 @@ struct TurnRow: View {
             }
             .buttonStyle(.plain)
             .help("Ascolta da qui")
+            .accessibilityLabel("Ascolta da \(TranscriptFormatter.timestamp(turn.start))")
             VStack(alignment: .leading, spacing: 3) {
                 Text(turn.speaker.label)
                     .font(.caption.weight(.bold))
@@ -396,6 +422,10 @@ struct TurnRow: View {
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            // Voce e testo in una lettura sola. La battuta in ascolto si vede solo dallo sfondo:
+            // VoiceOver la dice «selezionata».
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(active ? .isSelected : [])
         }
         .padding(.vertical, 9)
         .padding(.horizontal, 10)

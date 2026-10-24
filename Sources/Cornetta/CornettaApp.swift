@@ -40,7 +40,8 @@ struct MenuContent: View {
     @ObservedObject var updates: UpdateManager
 
     var body: some View {
-        if let version = updates.availableVersion {
+        // In registrazione niente installazione: il riavvio taglierebbe la chiamata.
+        if let version = updates.availableVersion, !model.isRecording {
             Button("Installa l'aggiornamento a Cornetta \(version)…") { updates.installOrCheck() }
             Divider()
         }
@@ -75,10 +76,8 @@ struct MenuContent: View {
         Button("Controlla aggiornamenti…") { updates.installOrCheck() }
         Divider()
         Text("Cornetta \(AppInfo.version)")
-        Button("Esci da Cornetta") {
-            model.stop()
-            NSApp.terminate(nil)
-        }
+        // Ferma e salva lo fa applicationShouldTerminate, senza convertire: la conversione la uccide l'uscita.
+        Button("Esci da Cornetta") { NSApp.terminate(nil) }
         .keyboardShortcut("q")
     }
 }
@@ -99,14 +98,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 RecorderModel.shared.showDemo()
                 return
             }
-            AppMover.offerMoveIfNeeded()
+            if Self.handOffToRunningInstance() { return }
+            if AppMover.offerMoveIfNeeded() { return }
             Telemetry.appLaunched()
             _ = RecorderModel.shared
             Library.shared.reload()
             Library.shared.resumePendingTranscriptions()
-            Library.shared.recoverInterruptedRecordings { name in
-                RecorderModel.shared.noteRecovered(name)
-            }
+            Library.shared.recoverInterruptedRecordings(
+                onRecovered: { RecorderModel.shared.noteRecovered($0) },
+                onRecoveryFailed: { RecorderModel.shared.noteRecoveryFailed($0) })
             if WelcomeWindow.shouldShow {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { WelcomeWindow.show() }
             }
@@ -117,6 +117,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         MainActor.assumeIsolated { LibraryWindow.show() }
         return true
+    }
+
+    /// Una sola Cornetta per volta. Restano fuori le copie sul disco di installazione, che devono poter
+    /// proporre lo spostamento in Applicazioni, sia come nuova istanza sia come istanza già aperta: con loro
+    /// due Cornette girano insieme, e la registrazione viva dell'altra la protegge il lock della cartella
+    /// di lavoro (`WorkingFolderLock`), che il recupero salta.
+    @MainActor private static func handOffToRunningInstance() -> Bool {
+        guard !AppMover.isInstallerCopy(Bundle.main.bundlePath), let other = AppMover.otherInstances().first else { return false }
+        Diagnostics.log("Cornetta è già aperta (pid \(other.processIdentifier)): chiudo questa copia")
+        // Riaprire l'altra copia le fa mostrare la finestra Registrazioni (applicationShouldHandleReopen).
+        if let url = other.bundleURL, url != Bundle.main.bundleURL {
+            NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+        }
+        NSApp.terminate(nil)
+        return true
+    }
+
+    /// Esci, aggiornamento, spegnimento: una registrazione in corso chiude i file (la converte il prossimo
+    /// avvio). Una conversione già partita si aspetta fino a 60 s: interrotta, al riavvio diventa un doppione.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        MainActor.assumeIsolated {
+            let model = RecorderModel.shared
+            model.stopForTermination()
+            guard model.hasUnsavedWork else { return .terminateNow }
+            Diagnostics.log("Uscita rimandata: finisco di salvare la registrazione")
+            model.whenSaved(timeout: 60) { NSApp.reply(toApplicationShouldTerminate: true) }
+            return .terminateLater
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

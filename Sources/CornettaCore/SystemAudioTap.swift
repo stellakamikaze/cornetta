@@ -8,6 +8,7 @@ final class SystemAudioTap {
 
     init() throws {
         let own = try? CoreAudio.processObject(pid: getpid())
+        if own == nil { Diagnostics.log("Cornetta non è fra i processi audio: il tap non la esclude") }
         let description = CATapDescription(stereoGlobalTapButExcludeProcesses: own.map { [$0] } ?? [])
         description.uuid = UUID()
         description.name = "Cornetta"

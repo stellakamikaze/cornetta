@@ -64,7 +64,20 @@ enum CoreAudio {
         var size = UInt32(MemoryLayout<AudioObjectID>.size)
         try check(AudioObjectGetPropertyData(system, &addr, UInt32(MemoryLayout<pid_t>.size), &pidValue, &size, &object),
                   "Ricerca del processo")
+        // Per un PID senza oggetto processo Core Audio non dà errore: restituisce kAudioObjectUnknown.
+        guard object != kAudioObjectUnknown else { throw CoreAudioError("Ricerca del processo", kAudioHardwareBadObjectError) }
         return object
+    }
+
+    /// Lista di oggetti Core Audio (processi, dispositivi) letta da una proprietà.
+    static func objects(_ object: AudioObjectID, _ selector: AudioObjectPropertySelector,
+                        scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal) -> [AudioObjectID] {
+        var addr = address(selector, scope)
+        var size: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(object, &addr, 0, nil, &size) == noErr, size > 0 else { return [] }
+        var list = [AudioObjectID](repeating: 0, count: Int(size) / MemoryLayout<AudioObjectID>.size)
+        guard AudioObjectGetPropertyData(object, &addr, 0, nil, &size, &list) == noErr else { return [] }
+        return Array(list.prefix(Int(size) / MemoryLayout<AudioObjectID>.size))
     }
 
     static func defaultInputDevice() -> AudioObjectID? {

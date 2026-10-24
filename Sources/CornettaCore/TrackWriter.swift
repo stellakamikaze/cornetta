@@ -82,6 +82,16 @@ final class TrackWriter {
         }
     }
 
+    /// Silenzio su mix e tracce, a blocchi di mezzo secondo: copre il buco di una ricostruzione.
+    func writeSilence(seconds: Double, sampleRate: Double) throws {
+        var remaining = Int(seconds * sampleRate)
+        while remaining > 0 {
+            let frames = min(remaining, max(Int(sampleRate / 2), 1))
+            try write(mic: [], system: [], frameCount: frames, sampleRate: sampleRate)
+            remaining -= frames
+        }
+    }
+
     func close() {
         meTrack = nil
         othersTrack = nil

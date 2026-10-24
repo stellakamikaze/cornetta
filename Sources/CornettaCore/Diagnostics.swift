@@ -5,8 +5,13 @@ import os
 public enum Diagnostics {
     private static let logger = Logger(subsystem: "com.stellakamikaze.cornetta", category: "cornetta")
     private static let queue = DispatchQueue(label: "com.stellakamikaze.cornetta.log")
-    public static let fileURL = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent("Library/Logs/Cornetta/cornetta.log")
+    public static let fileURL: URL = {
+        // Nei test il log va in una cartella temporanea: quello vero parte con la diagnostica del feedback.
+        if ["xctest", "swiftpm-testing-helper"].contains(ProcessInfo.processInfo.processName) {
+            return FileManager.default.temporaryDirectory.appendingPathComponent("cornetta-test.log")
+        }
+        return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/Cornetta/cornetta.log")
+    }()
 
     public static func log(_ message: String) {
         logger.notice("\(message, privacy: .public)")

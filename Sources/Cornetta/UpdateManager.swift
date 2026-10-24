@@ -63,6 +63,18 @@ final class UpdateManager: NSObject, ObservableObject, SPUUpdaterDelegate, SPUSt
         Diagnostics.log("Aggiornamento trovato: \(version)")
     }
 
+    /// «Installa e riavvia» durante una registrazione o una conversione: il riavvio aspetta che sia salvata.
+    nonisolated func updater(_ updater: SPUUpdater, shouldPostponeRelaunchForUpdate item: SUAppcastItem,
+                             untilInvokingBlock installHandler: @escaping () -> Void) -> Bool {
+        MainActor.assumeIsolated {
+            let model = RecorderModel.shared
+            guard model.hasUnsavedWork else { return false }
+            Diagnostics.log("Aggiornamento rimandato: c'è una registrazione da finire o da salvare")
+            model.whenSaved(installHandler)
+            return true
+        }
+    }
+
     nonisolated func updater(_ updater: SPUUpdater, didAbortWithError error: Error) {
         Diagnostics.log("Controllo aggiornamenti: \(error.localizedDescription)")
     }
