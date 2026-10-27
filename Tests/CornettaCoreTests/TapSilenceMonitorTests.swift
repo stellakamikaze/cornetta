@@ -179,4 +179,24 @@ struct TapSilenceMonitorTests {
         gap.markRebuild()
         #expect(gap.silenceBefore(start: 20, duration: 0.01) == 0)
     }
+
+    /// #4017: il microfono a zeri ricrea solo il dispositivo, mai il tap degli altri.
+    @Test func microphoneZerosRebuildWithoutTheTap() {
+        #expect(CallRecorder.SilentTrack.microphone.reason == .micZeros)
+        #expect(CallRecorder.SilentTrack.others.reason == .zeros)
+        #expect(!CallRecorder.RebuildReason.micZeros.recreatesTap)
+        #expect(CallRecorder.RebuildReason.zeros.recreatesTap)
+    }
+
+    /// #4017: un microfono che dopo un cambio di ingresso dà solo zeri arriva al primo reset a 20 s,
+    /// mentre il silenzio vero di una stanza (rumore di fondo, mai 0.0 esatti) non conta come zeri.
+    @Test func deadMicrophoneAfterInputChangeResets() {
+        var monitor = TapSilenceMonitor()
+        _ = feed(&monitor, zero: false, seconds: 60)
+        let room: [[Float]] = [[0.0001, -0.0002, 0.00005]]
+        #expect(!TapSilenceMonitor.isDigitalSilence(room))
+        #expect(TapSilenceMonitor.isDigitalSilence([[0, 0, 0]]))
+        let outcomes = feed(&monitor, zero: true, seconds: 21)
+        #expect(outcomes.first.map { if case .reset(count: 1, _) = $0 { true } else { false } } == true)
+    }
 }

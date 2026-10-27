@@ -27,10 +27,18 @@ public final class CallRecorder {
         case othersBack
     }
 
-    /// Perché si ricostruisce la cattura. Tutti tranne microfono e watchdog ricreano anche il tap.
+    /// Perché si ricostruisce la cattura. Tutti tranne microfono, zeri del microfono e watchdog ricreano anche il tap.
     enum RebuildReason: String {
-        case microphone = "microfono", output = "uscita", format = "formato", zeros = "zeri", watchdog
-        var recreatesTap: Bool { self != .microphone && self != .watchdog }
+        case microphone = "microfono", output = "uscita", format = "formato", zeros = "zeri"
+        case micZeros = "zeri microfono", watchdog
+        var recreatesTap: Bool { self != .microphone && self != .micZeros && self != .watchdog }
+    }
+
+    /// La traccia fatta di soli zeri: gli altri (tap, #3820) o il microfono dopo un cambio di ingresso (#4017).
+    enum SilentTrack {
+        case others, microphone
+        var label: String { self == .others ? "Audio degli altri" : "Microfono" }
+        var reason: RebuildReason { self == .others ? .zeros : .micZeros }
     }
 
     /// Un listener Core Audio registrato, da togliere con gli stessi dati.
@@ -88,13 +96,14 @@ public final class CallRecorder {
     /// App di chiamata attiva, dalla coda principale. Senza chiamata gli zeri vanno solo nel log:
     /// in una riunione dal vivo ricreare la cattura toglierebbe pezzi all'unica voce, quella del microfono.
     public var callActive = false
-    /// La serie di zeri in corso ha ricreato la cattura: solo allora log e avvisi seguono l'esito.
-    private var rebuiltForZeros = false
+    /// Tracce la cui serie di zeri in corso ha ricreato la cattura: solo allora log e avvisi seguono l'esito.
+    private var rebuiltForZeros: Set<SilentTrack> = []
     /// Reset per zeri scartati senza app di chiamata, dalla coda principale: limita le righe di log.
-    private var idleZeroResets = 0
+    private var idleZeroResets: [SilentTrack: Int] = [:]
     private var rebuildFailures = 0
     /// Usati solo dalla coda del writer.
     private var silenceMonitor = TapSilenceMonitor()
+    private var micSilenceMonitor = TapSilenceMonitor()
     private var captureGap = CaptureGap()
     /// Tenuto dall'avvio alla fine della conversione (vedi `WorkingFolderLock`).
     private var folderLock: WorkingFolderLock?
@@ -247,7 +256,8 @@ public final class CallRecorder {
         let startedAt = Date()
         // Uscite e processi solo se cambiati: il feedback allega le ultime 120 righe del log.
         let routing = AudioRouting.current()
-        Diagnostics.log("Cattura avviata (\(reason)\(routing == lastRouting ? ", uscite invariate" : "")): \(diagnostics)")
+        // Il nome del microfono solo nel log, non in `diagnostics`: dice quale ingresso era muto (#4017).
+        Diagnostics.log("Cattura avviata (\(reason)\(routing == lastRouting ? ", uscite invariate" : "")): \(diagnostics) ingresso=\(device.micName ?? "nessuno")")
         if routing != lastRouting { routing.logLines.forEach(Diagnostics.log) }
         lastRouting = routing
         rateListener = listen(device.deviceID, kAudioDevicePropertyNominalSampleRate) { $0.formatMaybeChanged() }
@@ -312,7 +322,11 @@ public final class CallRecorder {
             try writer.write(mic: mic, system: system, frameCount: frameCount, sampleRate: sampleRate)
             if !system.isEmpty,
                let outcome = silenceMonitor.record(allZero: TapSilenceMonitor.isDigitalSilence(system), seconds: duration) {
-                DispatchQueue.main.async { [weak self] in self?.handleSilence(outcome) }
+                DispatchQueue.main.async { [weak self] in self?.handleSilence(outcome, track: .others) }
+            }
+            if !mic.isEmpty,
+               let outcome = micSilenceMonitor.record(allZero: TapSilenceMonitor.isDigitalSilence(mic), seconds: duration) {
+                DispatchQueue.main.async { [weak self] in self?.handleSilence(outcome, track: .microphone) }
             }
         } catch {
             failed = true
@@ -431,36 +445,42 @@ public final class CallRecorder {
         listenToTap()
     }
 
-    // MARK: - Zeri dagli altri (#3820)
+    // MARK: - Zeri dagli altri (#3820) e dal microfono (#4017)
 
-    private func handleSilence(_ outcome: TapSilenceMonitor.Outcome) {
+    private func handleSilence(_ outcome: TapSilenceMonitor.Outcome, track: SilentTrack) {
         guard isRunning else { return }
         switch outcome {
         case .reset(let count, let seconds):
             guard callActive else {
                 // La serie riparte da capo: una chiamata che parte ora trova la prima soglia (20 s) e l'avviso.
-                writerQueue.async { [weak self] in self?.silenceMonitor.restartSeries() }
+                writerQueue.async { [weak self] in
+                    if track == .others { self?.silenceMonitor.restartSeries() } else { self?.micSilenceMonitor.restartSeries() }
+                }
                 // Un reset scartato ogni 20 s di zeri: nel log il primo e poi uno ogni 5 minuti.
-                idleZeroResets += 1
-                if idleZeroResets == 1 || idleZeroResets % 15 == 0 {
-                    Diagnostics.log("Audio di sistema a zero da \(Int(seconds)) s senza app di chiamata: non ricreo la cattura (\(idleZeroResets))")
+                let idle = idleZeroResets[track, default: 0] + 1
+                idleZeroResets[track] = idle
+                if idle == 1 || idle % 15 == 0 {
+                    let source = track == .others ? "Audio di sistema" : "Microfono"
+                    Diagnostics.log("\(source) a zero da \(Int(seconds)) s senza app di chiamata: non ricreo la cattura (\(idle))")
                 }
                 return
             }
-            idleZeroResets = 0
-            zeroResets += 1
-            rebuiltForZeros = true
-            Diagnostics.log("Audio degli altri a zero da \(Int(seconds)) s: ricreo tap e dispositivo (\(count))")
-            rebuildCapture([.zeros])
+            idleZeroResets[track] = 0
+            if track == .others { zeroResets += 1 }
+            rebuiltForZeros.insert(track)
+            let what = track == .others ? "ricreo tap e dispositivo" : "ricreo il dispositivo"
+            Diagnostics.log("\(track.label) a zero da \(Int(seconds)) s: \(what) (\(count))")
+            rebuildCapture([track.reason])
         case .stillSilent(let count, let warn):
-            guard rebuiltForZeros else { return }
-            Diagnostics.log("Audio degli altri ancora a zero \(Int(TapSilenceMonitor.checkDelay)) s dopo il reset (\(count))")
-            if warn { onEvent?(.othersSilent) }
+            guard rebuiltForZeros.contains(track) else { return }
+            Diagnostics.log("\(track.label) ancora a zero \(Int(TapSilenceMonitor.checkDelay)) s dopo il reset (\(count))")
+            // L'avviso in interfaccia c'è solo per gli altri: il microfono per ora va solo nel log.
+            if warn, track == .others { onEvent?(.othersSilent) }
         case .back(let seconds, let warn):
-            guard rebuiltForZeros else { return }
-            rebuiltForZeros = false
-            Diagnostics.log(String(format: "Audio degli altri tornato %.1f s dopo il reset", seconds))
-            if warn { onEvent?(.othersBack) }
+            guard rebuiltForZeros.contains(track) else { return }
+            rebuiltForZeros.remove(track)
+            Diagnostics.log(String(format: "%@ tornato %.1f s dopo il reset", track.label, seconds))
+            if warn, track == .others { onEvent?(.othersBack) }
         }
     }
 

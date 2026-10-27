@@ -108,7 +108,9 @@ Il log sta in `%LOCALAPPDATA%\Cornetta\cornetta.log`.
 
 ### Come funziona
 
-Cornetta legge l'audio di sistema con il loopback WASAPI e la tua voce dal microfono, usando l'uscita e il microfono che Windows assegna alle comunicazioni: sono quelli di Teams, Zoom, WhatsApp e del browser in chiamata. Se mancano, usa i predefiniti generali. Porta le due sorgenti a 48 kHz stereo e le mette su una linea del tempo comune, decisa da un orologio unico. Il loopback non manda pacchetti quando nessuno suona: Cornetta suona silenzio sull'uscita e riempie di zeri i buchi rimasti, così le due voci restano allineate. Il file è AAC 160 kbit/s con Media Foundation. Su Windows N senza Media Feature Pack Cornetta registra in WAV.
+Cornetta legge l'audio di sistema con il loopback WASAPI e la tua voce dal microfono, usando il microfono che Windows assegna alle comunicazioni, il generale solo se manca. Ascolta l'uscita delle comunicazioni e, in aggiunta, quella generale: sono quelle di Teams, Zoom, WhatsApp e del browser in chiamata. Porta le due sorgenti a 48 kHz stereo e le mette su una linea del tempo comune, decisa da un orologio unico. Il loopback non manda pacchetti quando nessuno suona: Cornetta suona silenzio sull'uscita e riempie di zeri i buchi rimasti, così le due voci restano allineate. Il file è AAC 160 kbit/s con Media Foundation. Su Windows N senza Media Feature Pack Cornetta registra in WAV.
+
+Durante la chiamata Cornetta scrive un WAV di lavoro in `%LOCALAPPDATA%\Cornetta Dati\In corso\`, fuori dalla cartella che Velopack sostituisce agli aggiornamenti. Allo stop lo converte e svuota la cartella. Se l'app si chiude di colpo, al prossimo avvio recupera la registrazione interrotta.
 
 Le chiamate si riconoscono dalle sessioni audio attive sui microfoni e dal registro di Windows (`ConsentStore\microphone`): quando un'app diversa da Cornetta usa il microfono da almeno 4 secondi, compare l'avviso. Su Windows 24H2 il registro può restare fermo, perché Windows annota l'uso in un database che solo il sistema legge: per questo contano le sessioni audio.
 
