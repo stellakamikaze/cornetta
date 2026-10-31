@@ -64,6 +64,8 @@ a:hover { color: var(--accent); }
 .meta a:hover { color: var(--accent); }
 .os-note { margin: 14px auto 0; max-width: 46ch; font-size: 0.9375rem; color: var(--ink-2); }
 .os-note[hidden] { display: none; }
+/* Varianti per sistema: site.js mostra quella del visitatore. Vince sul display di .steps, .callout e simili. */
+[data-os][hidden] { display: none; }
 
 /* La scena: una porzione di desktop con Cornetta al lavoro. */
 .scene { margin: 56px auto 0; width: min(100% - 40px, 1040px); aspect-ratio: 2 / 1; position: relative; border-radius: 22px; overflow: hidden; background: linear-gradient(160deg, #e9edf5 0%, #dfe5ef 45%, #e8e2ea 100%); box-shadow: 0 1px 0 rgb(255 255 255 / 70%) inset, 0 30px 60px -30px rgb(29 29 31 / 35%); }

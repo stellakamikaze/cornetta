@@ -114,8 +114,9 @@
 <main id="main">
   <section class="hero" aria-labelledby="titolo">
     <div class="wrap">
-      <h1 id="titolo">Record calls on your Mac.</h1>
-      <p class="lede">In <strong>any app</strong>: WhatsApp, FaceTime, Meet, Zoom, Teams. Your voice and theirs in one file, with a <strong>transcript</strong>. <strong>Free</strong> and open source, no account.</p>
+      <h1 id="titolo">Record calls on your <span data-os="mac">Mac.</span><span data-os="windows" hidden>PC.</span></h1>
+      <p class="lede" data-os="mac">In <strong>any app</strong>: WhatsApp, FaceTime, Meet, Zoom, Teams. Your voice and theirs in one file, with a <strong>transcript</strong>. <strong>Free</strong> and open source, no account.</p>
+      <p class="lede" data-os="windows" hidden>In <strong>any app</strong>: WhatsApp, Meet, Zoom, Teams. Your voice and theirs in one file. <strong>Free</strong> and open source, no account.</p>
       <div class="cta">
         <a class="btn btn-primary" href="/download" data-download-primary>
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m0 0-4-4m4 4 4-4M4 16.5h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -123,9 +124,10 @@
         </a>
         <a class="btn btn-secondary" href="#install">How to install</a>
       </div>
-      <p class="meta" data-meta="mac" data-requirements="macOS 14.4 or later · Apple Silicon and Intel">Free · macOS 14.4 or later · Apple Silicon and Intel</p>
-      <p class="meta meta-alt" data-windows>On a PC? <a href="/download/windows" data-download-windows>Download Cornetta for Windows</a>, in beta.</p>
-      <p class="meta meta-alt" data-windows-mac hidden>On a Mac? <a href="/download">Download Cornetta for Mac</a>.</p>
+      <p class="meta" data-os="mac" data-meta="mac" data-requirements="macOS 14.4 or later · Apple Silicon and Intel">Free · macOS 14.4 or later · Apple Silicon and Intel</p>
+      <p class="meta" data-os="windows" data-meta="windows" data-requirements="Windows 10 and 11" hidden>Free · in beta · Windows 10 and 11</p>
+      <p class="meta meta-alt" data-os="mac" data-windows>On a PC? <a href="/download/windows" data-download-windows>Download Cornetta for Windows</a>, in beta.</p>
+      <p class="meta meta-alt" data-os="windows" hidden>On a Mac? <a href="/download">Download Cornetta for Mac</a>.</p>
       <div class="os-note" id="os-note" hidden></div>
     </div>
     <div class="scene" role="img" aria-label="A Mac desktop during a call: Cornetta is recording and shows time, voice levels and a Stop button; a notice offers to record the WhatsApp call.">
@@ -140,7 +142,7 @@
     <div class="wrap">
       <p>Works with calls in</p>
       <ul>
-        <li>WhatsApp</li><li>FaceTime</li><li>Google Meet</li><li>Zoom</li><li>Microsoft Teams</li><li>Slack</li><li>Discord</li><li>Telegram</li><li>your browser</li>
+        <li>WhatsApp</li><li data-os="mac">FaceTime</li><li>Google Meet</li><li>Zoom</li><li>Microsoft Teams</li><li>Slack</li><li>Discord</li><li>Telegram</li><li>your browser</li>
       </ul>
     </div>
   </section>
@@ -149,7 +151,8 @@
     <div class="wrap">
       <div class="section-head">
         <h2 id="features-title">One click to record.<br>Nothing to think about.</h2>
-        <p class="intro">Cornetta lives in the menu bar. No audio settings to change, no drivers to install, no devices to pick.</p>
+        <p class="intro" data-os="mac">Cornetta lives in the menu bar. No audio settings to change, no drivers to install, no devices to pick.</p>
+        <p class="intro" data-os="windows" hidden>Cornetta lives in the notification area, near the clock. No audio settings to change, no drivers to install, no devices to pick.</p>
       </div>
 
       <div class="feature">
@@ -177,7 +180,8 @@
       <div class="feature">
         <div class="feature-text">
           <h3>Your voice is as loud as theirs</h3>
-          <p>During a call the Mac hands the microphone to the calling app and leaves recorders a weak signal. Cornetta raises it by up to 24 dB, so your voice matches the person on the other end.</p>
+          <p data-os="mac">During a call the Mac hands the microphone to the calling app and leaves recorders a weak signal. Cornetta raises it by up to 24 dB, so your voice matches the person on the other end.</p>
+          <p data-os="windows" hidden>During a call the calling app processes the microphone for itself and leaves recorders a weak signal. Cornetta raises it by up to 24 dB, so your voice matches the person on the other end.</p>
           <p>While the other person talks, Cornetta stops boosting the microphone, so speaker echo never doubles their voice.</p>
         </div>
         <div class="feature-media"><img src="/img/leveler.svg" alt="Example with synthetic data: before, your voice is much quieter than the call; after, both have a similar volume." width="560" height="480" loading="lazy"></div>
@@ -186,6 +190,7 @@
       <div class="feature flip">
         <div class="feature-text">
           <h3>Every call, transcribed on your Mac</h3>
+          <p data-os="windows" hidden>Transcription is Mac-only for now.</p>
           <p>When you stop recording, Cornetta transcribes the call on its own, without sending anything to the internet. It uses macOS speech recognition: a half-hour call takes less than a minute.</p>
           <ul>
             <li>Your voice and theirs kept apart, labelled “Tu” (you) and “Altri” (others)</li>
@@ -211,7 +216,7 @@
   <section class="section section-soft" aria-labelledby="details-title">
     <div class="wrap">
       <div class="section-head">
-        <h2 id="details-title">Made for the Mac. Nothing else.</h2>
+        <h2 id="details-title">Made for the <span data-os="mac">Mac</span><span data-os="windows" hidden>PC</span>. Nothing else.</h2>
       </div>
       <ul class="details">
         <li>
@@ -221,13 +226,16 @@
         </li>
         <li>
           <svg viewBox="0 0 28 28" aria-hidden="true"><rect x="6" y="12" width="16" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 12V9a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-          <h3>It stays on your Mac</h3>
-          <p>Recordings and transcripts never leave your computer. No cloud, no account. <a href="/en/privacy/">What is sent and what is not</a>.</p>
+          <h3 data-os="mac">It stays on your Mac</h3>
+          <h3 data-os="windows" hidden>It stays on your PC</h3>
+          <p data-os="mac">Recordings and transcripts never leave your computer. No cloud, no account. <a href="/en/privacy/">What is sent and what is not</a>.</p>
+          <p data-os="windows" hidden>Recordings never leave your computer. No cloud, no account. <a href="/en/privacy/">What is sent and what is not</a>.</p>
         </li>
         <li>
           <svg viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="m9.5 14.5 3 3 6-6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <h3>No audio driver</h3>
-          <p>It uses the macOS feature for recording system audio. No BlackHole, no changing your audio output.</p>
+          <p data-os="mac">It uses the macOS feature for recording system audio. No BlackHole, no changing your audio output.</p>
+          <p data-os="windows" hidden>It uses the Windows feature for recording system audio. No virtual driver, no changing your audio output.</p>
         </li>
         <li>
           <svg viewBox="0 0 28 28" aria-hidden="true"><path d="M5 9h18M5 14h18M5 19h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -236,8 +244,10 @@
         </li>
         <li>
           <svg viewBox="0 0 28 28" aria-hidden="true"><rect x="4" y="6" width="20" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 23h8M14 19v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-          <h3>Apple Silicon and Intel</h3>
-          <p>One app for every Mac running macOS 14.4 or later.</p>
+          <h3 data-os="mac">Apple Silicon and Intel</h3>
+          <h3 data-os="windows" hidden>Windows 10 and 11</h3>
+          <p data-os="mac">One app for every Mac running macOS 14.4 or later.</p>
+          <p data-os="windows" hidden>It installs for your user account, without administrator rights.</p>
         </li>
         <li>
           <svg viewBox="0 0 28 28" aria-hidden="true"><path d="M5 7.5A2.5 2.5 0 0 1 7.5 5h13A2.5 2.5 0 0 1 23 7.5v9a2.5 2.5 0 0 1-2.5 2.5H12l-5 4v-4h-.5A2.5 2.5 0 0 1 5 16.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
@@ -251,10 +261,10 @@
   <section class="section" id="install" aria-labelledby="install-title">
     <div class="wrap">
       <div class="section-head">
-        <h2 id="install-title">Install it in two minutes.</h2>
+        <h2 id="install-title">Install it in <span data-os="mac">two minutes</span><span data-os="windows" hidden>three steps</span>.</h2>
         <p class="intro">You do it once. Updates arrive on their own.</p>
       </div>
-      <ol class="steps">
+      <ol class="steps" data-os="mac">
         <li>
           <h3>Download and drag</h3>
           <p>Download Cornetta, open the file from your Downloads folder and drag the icon into Applications.</p>
@@ -268,9 +278,27 @@
           <p>On the first recording Cornetta asks for the <strong>Microphone</strong>, for your voice, and <strong>System Audio Recording</strong>, for the others. Click <span class="key">Allow</span> for both.</p>
         </li>
       </ol>
-      <div class="callout">
+      <div class="callout" data-os="mac">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4m0 3v.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         <p>If you open Cornetta straight from the disk image, it offers to move itself to Applications: accept. From there it updates itself and macOS remembers the permissions.</p>
+      </div>
+      <ol class="steps" data-os="windows" hidden>
+        <li>
+          <h3>Download and open</h3>
+          <p>Download Cornetta and open the <strong>CornettaSetup.exe</strong> file. No administrator rights needed.</p>
+        </li>
+        <li>
+          <h3>Allow the first launch</h3>
+          <p>Windows may show the warning <strong>Windows protected your PC</strong>, because the installer is not signed. Click <span class="key">More info</span>, then <span class="key">Run anyway</span>.</p>
+        </li>
+        <li>
+          <h3>Find it near the clock</h3>
+          <p>Cornetta appears in the notification area, next to the clock. If you do not see it, open the <span class="key">^</span> arrow beside it.</p>
+        </li>
+      </ol>
+      <div class="callout" data-os="windows" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4m0 3v.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <p>If the microphone stays silent, open <strong>Settings › Privacy &amp; security › Microphone</strong> and turn on microphone access for desktop apps.</p>
       </div>
     </div>
   </section>
@@ -302,13 +330,16 @@
     <div class="wrap">
       <img src="/img/cornetta-icon.webp" alt="" width="96" height="96" loading="lazy">
       <h2 id="closing-title">Record your next call.</h2>
-      <p>Free, for Mac. Two minutes to install.</p>
-      <p class="meta" data-windows>Also for Windows, in beta: <a href="/download/windows">download for Windows</a>.</p>
+      <p data-os="mac">Free, for Mac. Two minutes to install.</p>
+      <p data-os="windows" hidden>Free, for Windows, in beta. It installs without administrator rights.</p>
+      <p class="meta" data-os="mac" data-windows>Also for Windows, in beta: <a href="/download/windows">download for Windows</a>.</p>
+      <p class="meta" data-os="windows" hidden>Also for Mac: <a href="/download">download for Mac</a>.</p>
       <a class="btn btn-primary" href="/download" data-download-primary>
         <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m0 0-4-4m4 4 4-4M4 16.5h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span>Download for Mac</span>
       </a>
-      <p class="meta" data-meta="mac" data-requirements="macOS 14.4 or later">macOS 14.4 or later</p>
+      <p class="meta" data-os="mac" data-meta="mac" data-requirements="macOS 14.4 or later">macOS 14.4 or later</p>
+      <p class="meta" data-os="windows" data-meta="windows" data-requirements="Windows 10 and 11" hidden>Windows 10 and 11</p>
     </div>
   </section>
 </main>
