@@ -40,7 +40,12 @@
         var info = latest[platform];
         if (!info) return;
         var beta = platform === "windows" ? " beta" : "";
-        el.textContent = t.version + " " + info.version + beta + " · " + size(info.size) + " · " + el.getAttribute("data-requirements");
+        // Versione e peso su una riga, requisiti sulla riga sotto.
+        el.replaceChildren(
+          document.createTextNode(t.version + " " + info.version + beta + " (" + size(info.size) + ")"),
+          document.createElement("br"),
+          document.createTextNode(el.getAttribute("data-requirements"))
+        );
       });
       document.querySelectorAll("[data-sha]").forEach(function (el) {
         var info = latest[el.getAttribute("data-sha")];
@@ -62,12 +67,26 @@
     var note = document.getElementById("os-note");
     if (note) {
       note.textContent = t.phone + " ";
+      // Senza appunti (pagina non sicura o permesso negato) il pulsante lascia il posto al link
+      // in testo semplice, già selezionato e a capo dove serve, da copiare a mano.
       var button = document.createElement("button");
       button.type = "button";
       button.className = "btn btn-secondary";
       button.textContent = t.copy;
       button.addEventListener("click", function () {
-        navigator.clipboard.writeText(location.href).then(function () { button.textContent = t.copied; });
+        var showLink = function () {
+          if (button.parentNode !== note) return;
+          var link = document.createElement("span");
+          link.className = "os-link";
+          link.tabIndex = -1;
+          link.textContent = location.href;
+          note.replaceChild(link, button);
+          var selection = window.getSelection();
+          link.focus();
+          if (selection) selection.selectAllChildren(link);
+        };
+        if (!navigator.clipboard) { showLink(); return; }
+        navigator.clipboard.writeText(location.href).then(function () { button.textContent = t.copied; }, showLink);
       });
       note.appendChild(button);
       note.hidden = false;
