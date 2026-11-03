@@ -8,6 +8,12 @@ public final class ScreenFileWriter {
         public let url: URL
         public let seconds: Double
         public let bytes: Int64
+
+        public init(url: URL, seconds: Double, bytes: Int64) {
+            self.url = url
+            self.seconds = seconds
+            self.bytes = bytes
+        }
     }
 
     public enum WriterError: LocalizedError {

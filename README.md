@@ -44,6 +44,7 @@ Se a metà chiamata cambi microfono (per esempio colleghi le AirPods), Cornetta 
 - Nel sottomenu **Video dello schermo** scegli se registrare anche il microfono (da macOS 15) e l'audio del Mac.
 - Col selettore di sistema Cornetta non chiede il permesso Registrazione schermo: vede solo ciò che hai scelto, e macOS lo segnala con l'indicatore viola nella barra dei menu.
 - Il file è a frammenti di 10 secondi: se il Mac si spegne di colpo, il video resta leggibile fino all'ultimo frammento.
+- Durante il video audio del Mac e microfono stanno in due tracce; allo stop Cornetta le unisce in una, perché WhatsApp, Slack e i browser leggono solo la prima.
 
 Prova da riga di comando: `open -n build/Cornetta.app --args --record-screen 30 --out esito.json [--no-mic] [--no-audio]`.
 

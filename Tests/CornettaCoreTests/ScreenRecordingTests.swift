@@ -207,4 +207,28 @@ struct ScreenRecordingTests {
         #expect(videoTracks.count == 1)
         #expect(duration >= 2)
     }
+
+    /// Le due tracce diventano una: chi riceve il video su WhatsApp o Slack sente anche il microfono.
+    @Test func audioTracksAreMergedIntoOne() async throws {
+        let dir = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let size = ScreenEncoding.Size(width: 640, height: 360)
+        let writer = try ScreenFileWriter(url: dir.appendingPathComponent("unione.mp4"), size: size,
+                                          systemAudio: true, microphone: true)
+        try feed(writer, seconds: 2, size: size)
+        let saved = try await finish(writer)
+        try await ScreenAudioMix.mergeAudioTracks(in: saved.url)
+
+        let asset = AVURLAsset(url: saved.url)
+        let audioTracks = try await asset.loadTracks(withMediaType: .audio)
+        let videoTracks = try await asset.loadTracks(withMediaType: .video)
+        #expect(audioTracks.count == 1)
+        #expect(videoTracks.count == 1)
+        let codec = try #require(try await videoTracks.first?.load(.formatDescriptions).first).mediaSubType
+        #expect(codec == .hevc)
+        let duration = try await asset.load(.duration).seconds
+        #expect(abs(duration - 2) < 0.3)
+        let leftovers = try FileManager.default.contentsOfDirectory(atPath: dir.path)
+        #expect(leftovers == ["unione.mp4"])
+    }
 }

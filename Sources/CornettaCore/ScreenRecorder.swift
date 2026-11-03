@@ -102,7 +102,19 @@ public final class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate, @
                 self.stopping = true
                 self.writer = nil
                 if writer.droppedFrames > 0 { Diagnostics.log("Schermo: \(writer.droppedFrames) frame scartati") }
-                writer.finish(completion: completion)
+                writer.finish { result in
+                    guard case .success(let saved) = result else { completion(result); return }
+                    Task {
+                        do {
+                            try await ScreenAudioMix.mergeAudioTracks(in: saved.url)
+                        } catch {
+                            // Il video resta con due tracce audio: si vede e si sente in QuickTime.
+                            Diagnostics.log("Schermo: \(error.localizedDescription)")
+                        }
+                        let bytes = (try? FileManager.default.attributesOfItem(atPath: saved.url.path)[.size] as? NSNumber)?.int64Value ?? saved.bytes
+                        completion(.success(ScreenFileWriter.Saved(url: saved.url, seconds: saved.seconds, bytes: bytes)))
+                    }
+                }
             }
         }
     }

@@ -77,6 +77,7 @@ final class ScreenRecordingModel: NSObject, ObservableObject {
         isPicking = false
         guard !isRecording else { return }
         let directory = FileNaming.screenDirectory
+        ScreenAudioMix.removeLeftovers(in: directory)
         let url = FileNaming.screenRecordingURL(in: directory)
         let wantsMicrophone = headlessOptions?.microphone ?? includeMicrophone
         let wantsSystemAudio = headlessOptions?.systemAudio ?? includeSystemAudio
