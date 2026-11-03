@@ -6,14 +6,18 @@ struct CornettaApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @StateObject private var model = RecorderModel.shared
     @StateObject private var updates = UpdateManager.shared
+    @StateObject private var screen = ScreenRecordingModel.shared
 
     var body: some Scene {
         MenuBarExtra {
-            MenuContent(model: model, updates: updates)
+            MenuContent(model: model, updates: updates, screen: screen)
         } label: {
             if model.isRecording {
                 Image(nsImage: Self.recordingIcon)
                 Text(model.elapsedText)
+            } else if screen.isRecording {
+                Image(nsImage: Self.recordingIcon)
+                Text(screen.elapsedText)
             } else if updates.availableVersion != nil {
                 Image(systemName: "phone.arrow.down.left")
                 Image(nsImage: Self.updateBadge)
@@ -38,10 +42,11 @@ struct CornettaApp: App {
 struct MenuContent: View {
     @ObservedObject var model: RecorderModel
     @ObservedObject var updates: UpdateManager
+    @ObservedObject var screen: ScreenRecordingModel
 
     var body: some View {
-        // In registrazione niente installazione: il riavvio taglierebbe la chiamata.
-        if let version = updates.availableVersion, !model.isRecording {
+        // In registrazione niente installazione: il riavvio taglierebbe la chiamata o il video.
+        if let version = updates.availableVersion, !model.isRecording, !screen.isRecording {
             Button("Installa l'aggiornamento a Cornetta \(version)…") { updates.installOrCheck() }
             Divider()
         }
@@ -57,10 +62,26 @@ struct MenuContent: View {
         if model.message?.hasPrefix("Microfono non autorizzato") == true {
             Button("Apri le impostazioni del microfono…") { model.openMicrophoneSettings() }
         }
+        Button(screen.isRecording ? "Ferma il video dello schermo" : "Registra lo schermo…") { screen.toggle() }
+            .disabled(screen.isPicking)
+        if screen.isRecording {
+            Text("Video dello schermo · \(screen.elapsedText)")
+            if screen.withoutMicrophone {
+                Text("Senza microfono: serve macOS 15")
+            }
+        }
         Divider()
         Button("Registrazioni e trascrizioni…") { LibraryWindow.show() }
             .keyboardShortcut("t")
         Button("Apri cartella registrazioni") { model.openFolder() }
+        Menu("Video dello schermo") {
+            Toggle("Registra anche il microfono", isOn: $screen.includeMicrophone)
+                .disabled(!ScreenRecorder.supportsMicrophone)
+            Toggle("Registra anche l'audio del Mac", isOn: $screen.includeSystemAudio)
+            Toggle("Mostra il pannello durante il video", isOn: $screen.showOverlay)
+            Divider()
+            Button("Apri cartella video") { screen.openFolder() }
+        }
         if model.lastFile != nil {
             Button("Mostra l'ultima registrazione") { model.revealLastFile() }
         }
@@ -139,10 +160,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         MainActor.assumeIsolated {
             let model = RecorderModel.shared
+            let screen = ScreenRecordingModel.shared
             model.stopForTermination()
-            guard model.hasUnsavedWork else { return .terminateNow }
-            Diagnostics.log("Uscita rimandata: finisco di salvare la registrazione")
-            model.whenSaved(timeout: 60) { NSApp.reply(toApplicationShouldTerminate: true) }
+            guard model.hasUnsavedWork || screen.hasUnsavedWork else { return .terminateNow }
+            Diagnostics.log("Uscita rimandata: finisco di salvare la registrazione o il video")
+            // Il video si chiude in pochi secondi; poi si aspetta la conversione della chiamata, se c'è.
+            screen.stopAndWait(timeout: 10) {
+                model.whenSaved(timeout: 60) { NSApp.reply(toApplicationShouldTerminate: true) }
+            }
             return .terminateLater
         }
     }

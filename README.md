@@ -37,6 +37,16 @@ Se hai negato un permesso, riattivalo in **Impostazioni di Sistema → Privacy e
 
 Se a metà chiamata cambi microfono (per esempio colleghi le AirPods), Cornetta passa al nuovo microfono e continua sullo stesso file.
 
+## Video dello schermo
+
+- **Registra lo schermo…**: macOS mostra il suo selettore. Scegli uno schermo, una finestra o un'app e il video parte. L'icona diventa un pallino rosso col tempo, e un piccolo pannello ha il pulsante **Ferma**.
+- Il video si salva già compresso in `~/Movies/Cornetta/` («Schermo 2026-11-03 12.30.mp4»): HEVC fino a 1920 px di lato e 30 fotogrammi al secondo, con audio AAC. Un'ora di lavoro a schermo pesa al massimo circa 1,9 GB; QuickTime ne scrive 4-6.
+- Nel sottomenu **Video dello schermo** scegli se registrare anche il microfono (da macOS 15) e l'audio del Mac.
+- Col selettore di sistema Cornetta non chiede il permesso Registrazione schermo: vede solo ciò che hai scelto, e macOS lo segnala con l'indicatore viola nella barra dei menu.
+- Il file è a frammenti di 10 secondi: se il Mac si spegne di colpo, il video resta leggibile fino all'ultimo frammento.
+
+Prova da riga di comando: `open -n build/Cornetta.app --args --record-screen 30 --out esito.json [--no-mic] [--no-audio]`.
+
 ## Trascrizione
 
 Da macOS 26 Cornetta trascrive ogni chiamata sul Mac, con il riconoscimento vocale di Apple (SpeechAnalyzer): niente esce dal computer.

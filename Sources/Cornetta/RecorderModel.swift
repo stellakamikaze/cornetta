@@ -358,7 +358,7 @@ final class RecorderModel: ObservableObject {
         }
     }
 
-    private func showError(title: String, message: String) {
+    func showError(title: String, message: String) {
         NSSound(named: "Basso")?.play()
         showNotice(kind: "error", NoticeView(
             icon: "exclamationmark.triangle.fill", tint: .orange, title: title, message: message,
@@ -493,7 +493,7 @@ final class RecorderModel: ObservableObject {
     func announceUpdate(_ version: String) {
         // Durante una registrazione l'avviso aspetta che sia salvata: niente distrazioni in chiamata,
         // e «Aggiorna ora» non riavvia l'app a conversione in corso.
-        guard !hasUnsavedWork else { pendingUpdateNotice = version; return }
+        guard !hasUnsavedWork, !ScreenRecordingModel.shared.hasUnsavedWork else { pendingUpdateNotice = version; return }
         showNotice(kind: "update", NoticeView(
             icon: "arrow.down.circle.fill", tint: .blue,
             title: "Aggiornamento disponibile",
@@ -555,7 +555,7 @@ final class RecorderModel: ObservableObject {
         }
     }
 
-    private func showNotice<V: View>(kind: String, _ view: V) {
+    func showNotice<V: View>(kind: String, _ view: V) {
         noticePanel?.orderOut(nil)
         noticePanel = FloatingPanel(rootView: view, autosaveName: "CornettaNotice")
         noticeKind = kind
@@ -563,7 +563,7 @@ final class RecorderModel: ObservableObject {
         noticePanel?.show()
     }
 
-    private func closeNotice() {
+    func closeNotice() {
         noticePanel?.orderOut(nil)
         noticePanel = nil
         noticeKind = nil
@@ -644,7 +644,7 @@ final class RecorderModel: ObservableObject {
 
 /// Un'azione che parte una volta sola, da chi arriva prima fra l'attesa e il tetto di tempo.
 @MainActor
-private final class Once {
+final class Once {
     private var action: (() -> Void)?
     init(_ action: @escaping () -> Void) { self.action = action }
     func run() {

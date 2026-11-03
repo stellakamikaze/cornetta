@@ -33,6 +33,22 @@ public enum FileNaming {
         }
     }
 
+    /// ~/Movies/Cornetta: i video dello schermo stanno fuori dalla libreria delle chiamate.
+    public static var screenDirectory: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Movies", isDirectory: true)
+            .appendingPathComponent("Cornetta", isDirectory: true)
+    }
+
+    /// «Schermo 2026-11-03 12.30.mp4», con « (2)» se il nome è già preso.
+    public static func screenRecordingURL(
+        in directory: URL,
+        date: Date = Date(),
+        fileExists: (URL) -> Bool = { FileManager.default.fileExists(atPath: $0.path) }
+    ) -> URL {
+        uniqueURL(in: directory, baseName: "Schermo \(formatter.string(from: date))", pathExtension: "mp4", fileExists: fileExists)
+    }
+
     /// Cartella di lavoro di una registrazione: i CAF grezzi, con lo stesso nome del .m4a senza estensione.
     public static func workingDirectory(for recording: URL, in workingRoot: URL) -> URL {
         workingRoot.appendingPathComponent(recording.deletingPathExtension().lastPathComponent, isDirectory: true)
@@ -46,13 +62,13 @@ public enum FileNaming {
         return formatter
     }()
 
-    /// «<base>.m4a» nella cartella, con « (2)», « (3)» se il nome è già preso.
-    public static func uniqueURL(in directory: URL, baseName: String,
+    /// «<base>.<ext>» nella cartella, con « (2)», « (3)» se il nome è già preso.
+    public static func uniqueURL(in directory: URL, baseName: String, pathExtension: String = "m4a",
                                  fileExists: (URL) -> Bool = { FileManager.default.fileExists(atPath: $0.path) }) -> URL {
-        var candidate = directory.appendingPathComponent("\(baseName).m4a")
+        var candidate = directory.appendingPathComponent("\(baseName).\(pathExtension)")
         var counter = 2
         while fileExists(candidate) {
-            candidate = directory.appendingPathComponent("\(baseName) (\(counter)).m4a")
+            candidate = directory.appendingPathComponent("\(baseName) (\(counter)).\(pathExtension)")
             counter += 1
         }
         return candidate

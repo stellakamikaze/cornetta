@@ -9,6 +9,7 @@ Key facts:
 - Output: .m4a (AAC, 48 kHz, stereo) in ~/Music/Cornetta, file named "Chiamata YYYY-MM-DD HH.MM.m4a".
 - Your voice is levelled up to +24 dB to match the call; the boost pauses while the other person talks so speaker echo is not amplified.
 - Local transcription (macOS 26+): when a recording ends, Cornetta transcribes it on the Mac with Apple speech recognition (SpeechAnalyzer), labels lines as "Tu" (you) or "Altri" (others) from the separate tracks, removes speaker echo, and saves a Markdown file next to the audio. Recordings window with search and playback from any timestamp.
+- Screen recording (Mac): pick a display, window or app in the macOS picker; the video is saved already compressed (HEVC up to 1920 px, 30 fps, AAC audio, at most about 1.9 GB per hour) in ~/Movies/Cornetta, optionally with the microphone (macOS 15+) and Mac audio. No Screen Recording permission is needed with the system picker.
 - Detects when an app starts using the microphone and offers to record; suggests stopping when the call ends.
 - Floating panel while recording: elapsed time, level meters for you and the others, Stop, Feedback.
 - Automatic updates (Sparkle, EdDSA-signed) with a visible in-app notice.
