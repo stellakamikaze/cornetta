@@ -22,11 +22,17 @@ if [ "$SIGN_IDENTITY" = "-" ]; then
 fi
 
 echo "→ Compilo (release, arm64 + x86_64)"
+# Ogni binario si copia subito dopo la sua build: con lo SwiftPM dei Command Line Tools 27 le due
+# architetture escono nella stessa cartella e la seconda build sovrascrive la prima.
+mkdir -p build/arch
 for arch in arm64 x86_64; do
   swift build -c release --arch "$arch" >/dev/null
+  cp "$(swift build -c release --arch "$arch" --show-bin-path)/Cornetta" "build/arch/Cornetta-$arch"
 done
-ARM="$(swift build -c release --arch arm64 --show-bin-path)/Cornetta"
-X86="$(swift build -c release --arch x86_64 --show-bin-path)/Cornetta"
+ARM="build/arch/Cornetta-arm64"
+X86="build/arch/Cornetta-x86_64"
+lipo -info "$ARM" | grep -q arm64 || { echo "Il binario arm64 non è arm64: $(lipo -info "$ARM")"; exit 1; }
+lipo -info "$X86" | grep -q x86_64 || { echo "Il binario x86_64 non è x86_64: $(lipo -info "$X86")"; exit 1; }
 
 echo "→ Icona"
 mkdir -p build
