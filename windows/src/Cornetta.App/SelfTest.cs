@@ -64,6 +64,7 @@ namespace Cornetta.App
             Diagnostics.Log("Selftest avviato");
 
             CheckDevices();
+            CheckMediaCategory();
             bool aac = CheckAac();
             string folder = Path.Combine(Path.GetTempPath(), "cornetta-selftest-" + Guid.NewGuid().ToString("N").Substring(0, 8));
             Directory.CreateDirectory(folder);
@@ -71,6 +72,16 @@ namespace Cornetta.App
             CheckSyntheticFile(Path.Combine(folder, "sintetico.wav"));
             CheckRecovery(folder);
             Line("File di prova in " + folder);
+        }
+
+        /// <summary>
+        /// Il microfono in categoria Media passa da campi privati di NAudio: se mancano, sul PC vero Windows abbassa di
+        /// nuovo la chiamata appena Cornetta registra (Balthasar, 12/11/2026). Senza dispositivi il controllo vale lo stesso.
+        /// </summary>
+        private static void CheckMediaCategory()
+        {
+            if (AudioDevices.MediaCategoryAvailable) Line("Categoria Media del microfono: disponibile");
+            else Fail("Categoria Media del microfono: campi di NAudio non trovati, il microfono abbasserebbe gli altri suoni");
         }
 
         private static void CheckDevices()

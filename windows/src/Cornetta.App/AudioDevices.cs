@@ -100,6 +100,9 @@ namespace Cornetta.App
         /// Un flusso sul dispositivo delle chiamate per Windows è una chiamata: con l'impostazione predefinita abbassa
         /// dell'80% gli altri suoni (anche una chiamata nel browser). Cornetta chiede di non farlo, prima di aprire i flussi.
         /// La sessione resta in vita col dispositivo, che la cattura tiene finché registra.
+        /// Basta solo per il loopback: sul microfono Windows rifiuta (0x88890003, tipo di dispositivo sbagliato), e un flusso
+        /// che suona sull'uscita delle chiamate abbassa gli altri suoni anche con l'esclusione (provato su Balthasar, 12/11/2026).
+        /// Per il microfono vale MediaCategory, per l'uscita delle chiamate Cornetta non suona niente.
         /// </summary>
         public static void OptOutOfDucking(MMDevice device)
         {
@@ -120,6 +123,69 @@ namespace Cornetta.App
             {
                 Diagnostics.Log("Attenuazione degli altri suoni non esclusa: " + ex.Message);
             }
+        }
+
+        /// <summary>
+        /// Il microfono aperto nella categoria «Media»: con la categoria predefinita, sul microfono delle chiamate Windows lo
+        /// prende per una chiamata e abbassa gli altri suoni di circa 18 dB, compresa la chiamata nel browser, che Cornetta
+        /// registra già abbassata. In categoria Media il volume resta uguale (Balthasar, Meet in Firefox, 12/11/2026).
+        /// Va chiamato dopo il costruttore e prima di StartRecording, che inizializza il flusso.
+        /// </summary>
+        public static void MediaCategory(WasapiCapture capture)
+        {
+            try
+            {
+                var client = CaptureClientField?.GetValue(capture);
+                var raw = client == null ? null : ClientInterfaceField?.GetValue(client);
+                if (!(raw is IAudioClient2 client2))
+                {
+                    Diagnostics.Log("Categoria del microfono: interfaccia non trovata");
+                    return;
+                }
+                var properties = new AudioClientProperties2
+                {
+                    cbSize = (uint)Marshal.SizeOf(typeof(AudioClientProperties2)),
+                    eCategory = AudioStreamCategoryMedia,
+                };
+                Marshal.ThrowExceptionForHR(client2.SetClientProperties(ref properties));
+                Diagnostics.Log("Microfono in categoria Media: gli altri suoni restano al loro volume");
+            }
+            catch (Exception ex)
+            {
+                Diagnostics.Log("Categoria del microfono non impostata: " + ex.Message);
+            }
+        }
+
+        // NAudio 2.2.1 non espone IAudioClient2: l'interfaccia COM si prende dai campi privati di WasapiCapture e AudioClient.
+        private static readonly FieldInfo? CaptureClientField =
+            typeof(WasapiCapture).GetField("audioClient", BindingFlags.Instance | BindingFlags.NonPublic);
+        private static readonly FieldInfo? ClientInterfaceField =
+            typeof(AudioClient).GetField("audioClientInterface", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        /// <summary>Falso se un NAudio nuovo ha cambiato i campi privati: il microfono tornerebbe ad abbassare gli altri suoni. Lo guarda il selftest.</summary>
+        internal static bool MediaCategoryAvailable => CaptureClientField != null && ClientInterfaceField != null;
+
+        /// <summary>AudioCategory_Media di AUDIO_STREAM_CATEGORY.</summary>
+        internal const int AudioStreamCategoryMedia = 11;
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct AudioClientProperties2
+        {
+            public uint cbSize;
+            public int bIsOffload;
+            public int eCategory;
+            public int Options;
+        }
+
+        /// <summary>IAudioClient2: i dodici metodi di IAudioClient non servono qui e restano segnaposto, nell'ordine della vtable.</summary>
+        [ComImport, Guid("726778CD-F60A-4eda-82DE-E47610CD78AA"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        private interface IAudioClient2
+        {
+            void Initialize(); void GetBufferSize(); void GetStreamLatency(); void GetCurrentPadding();
+            void IsFormatSupported(); void GetMixFormat(); void GetDevicePeriod(); void Start();
+            void Stop(); void Reset(); void SetEventHandle(); void GetService();
+            [PreserveSig] int IsOffloadCapable(int category, out int offloadCapable);
+            [PreserveSig] int SetClientProperties(ref AudioClientProperties2 properties);
         }
 
         /// <summary>Vero se Windows ha un dispositivo per le chiamate o un predefinito generale.</summary>

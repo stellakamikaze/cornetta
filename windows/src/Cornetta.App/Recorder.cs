@@ -240,7 +240,9 @@ namespace Cornetta.App
                 return;
             }
             OutputName = device.FriendlyName;
-            system = OpenLoopback(device, pipeline!.System, "sistema", out keepAlive);
+            // Niente flusso di silenzio sull'uscita delle chiamate: anche muto, Windows lo prende per una chiamata e abbassa
+            // gli altri suoni (AudioDevices.OptOutOfDucking). Il loopback che tace lo copre la linea del tempo.
+            system = OpenLoopback(device, pipeline!.System, "sistema", false, out keepAlive);
             systemDeviceId = device.ID;
             StartGeneralOutput(device);
         }
@@ -256,7 +258,7 @@ namespace Cornetta.App
             if (general == null) return;
             try
             {
-                system2 = OpenLoopback(general, pipeline!.System2, "sistema 2", out keepAlive2);
+                system2 = OpenLoopback(general, pipeline!.System2, "sistema 2", true, out keepAlive2);
                 GeneralOutputName = general.FriendlyName;
             }
             catch (Exception ex)
@@ -265,8 +267,8 @@ namespace Cornetta.App
             }
         }
 
-        /// <summary>Loopback di un'uscita sulla linea del tempo, più il flusso di silenzio che lo tiene vivo.</summary>
-        private SourceCapture OpenLoopback(MMDevice device, CaptureTimeline timeline, string name, out WasapiOut? silence)
+        /// <summary>Loopback di un'uscita sulla linea del tempo, più il flusso di silenzio che lo tiene vivo se <paramref name="withSilence"/>.</summary>
+        private SourceCapture OpenLoopback(MMDevice device, CaptureTimeline timeline, string name, bool withSilence, out WasapiOut? silence)
         {
             AudioDevices.OptOutOfDucking(device);
             var capture = new WasapiLoopbackCapture(device);
@@ -278,6 +280,7 @@ namespace Cornetta.App
                 throw;
             }
             silence = null;
+            if (!withSilence) return source;
             try
             {
                 // Silenzio sull'uscita: il loopback continua a mandare pacchetti anche quando nessuno parla.
@@ -304,8 +307,8 @@ namespace Cornetta.App
             }
             try
             {
-                AudioDevices.OptOutOfDucking(device);
                 var capture = new WasapiCapture(device, true, 100);
+                AudioDevices.MediaCategory(capture);
                 mic = new SourceCapture("microfono", capture, pipeline!.Microphone, NowFrame, OnFirstBlock, OnCaptureStopped);
                 mic.Start();
                 MicrophoneName = device.FriendlyName;
