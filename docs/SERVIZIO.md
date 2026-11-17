@@ -84,7 +84,7 @@ Se il sito perde DMG o file Windows (per esempio dopo un `wrangler deploy` a man
 - **Chiave del feed Windows** (ECDSA P-256): firma `windows/releases.win.json` in `releases.win.json.sig`. L'app Windows verifica la firma prima di scaricare un aggiornamento (`FeedSignature.cs`) e senza firma valida non si aggiorna. Ed25519 non c'è in .NET Framework 4.8: ECDSA P-256 sì, senza librerie in più. La privata sta in un file PEM fuori dal repo, indicato da `CORNETTA_FEED_KEY_FILE`; `windows/tools/sign-feed.py` la legge dal file, si ferma se il file sta nel repo o è leggibile da altri, e confronta la sua chiave pubblica con quella dell'app. Se si perde, le app installate rifiutano ogni aggiornamento futuro: va ripristinata dal backup, mai rigenerata. Va creata **una volta sola**, prima della prima versione Windows con la verifica:
 
   ```bash
-  mkdir -p ~/.config/cornetta && (umask 077; openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out ~/.config/cornetta/feed-windows.pem)
+  mkdir -p ~/.config/cornetta && (umask 077; openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -pkeyopt ec_param_enc:named_curve -out ~/.config/cornetta/feed-windows.pem)
   export CORNETTA_FEED_KEY_FILE=~/.config/cornetta/feed-windows.pem   # anche nel profilo della shell
   windows/tools/sign-feed.py --public-key                              # stampa solo la chiave pubblica
   ```
