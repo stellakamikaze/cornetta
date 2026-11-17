@@ -15,6 +15,9 @@ const TETTO = 5 * 1024 * 1024; // OpenReplay manda lotti di qualche centinaio di
 export async function sessioniProxy(request) {
   const url = new URL(request.url);
   if (!url.pathname.startsWith("/api/r/")) return null;
+  // Un % o un .. nel path (/api/r/..%2fapi/) portava la richiesta fuori da /ingest,
+  // oltre il bypass di Access e fino al pannello (#5985). Il tracker non li usa.
+  if (/%|\.\./.test(url.pathname)) return new Response(null, { status: 400 });
   if (request.method === "OPTIONS") return new Response(null, { status: 204 });
   if (request.method !== "POST" && request.method !== "GET") {
     return new Response(null, { status: 405, headers: { allow: "GET, POST" } });
