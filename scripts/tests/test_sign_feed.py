@@ -30,7 +30,10 @@ class SignFeedTests(unittest.TestCase):
         self.key = os.path.join(self.tmp, "feed.pem")
         old = os.umask(0o077)
         try:
-            subprocess.run(["openssl", "genpkey", "-algorithm", "EC", "-pkeyopt", "ec_paramgen_curve:P-256", "-out", self.key],
+            # ec_param_enc:named_curve: LibreSSL di macOS, senza, scrive i parametri espliciti della curva
+            # e sign-feed.py rifiuta la chiave ("non è ECDSA P-256"). OpenSSL 3 usa già la curva per nome.
+            subprocess.run(["openssl", "genpkey", "-algorithm", "EC", "-pkeyopt", "ec_paramgen_curve:P-256",
+                            "-pkeyopt", "ec_param_enc:named_curve", "-out", self.key],
                            check=True, capture_output=True)
         finally:
             os.umask(old)

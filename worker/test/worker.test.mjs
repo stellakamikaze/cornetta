@@ -83,7 +83,7 @@ const PAGINE = new Set(pagineSuDisco());
 
 function setup() {
   const limits = ratelimitConfig();
-  const sent = { telegram: [], plausible: [] };
+  const sent = { telegram: [], plausible: [], replay: [] };
   const cache = new Map();
   globalThis.caches = {
     default: {
@@ -100,6 +100,11 @@ function setup() {
     if (url.includes("/api/event")) {
       sent.plausible.push(JSON.parse(init.body));
       return new Response(null, { status: 202 });
+    }
+    if (url.startsWith("https://replay.stellakamikaze.org/ingest/")) {
+      const h = new Headers(init.headers);
+      sent.replay.push({ url, method: init.method, xff: h.get("x-forwarded-for"), cookie: h.get("cookie") });
+      return Response.json({ token: "t" });
     }
     return new Response("", { status: 404 });
   };
@@ -398,4 +403,24 @@ test("pagine: ogni pagina su disco sta in run_worker_first, e ogni cartella lì 
   for (const path of first.filter((p) => p.endsWith("/") && !p.includes("*"))) {
     assert.ok(PAGINE.has(path), `${path} sta in run_worker_first ma non ha un index.html`);
   }
+});
+
+// MARK: - Registrazione delle sessioni (proxy verso OpenReplay)
+
+test("registrazioni: /api/r/* va all'ingest di OpenReplay con l'IP vero e senza cookie", async () => {
+  const { env, sent } = setup();
+  const r = await call(env, { path: "/api/r/v1/web/start", method: "POST", body: { projectKey: "x" }, headers: { cookie: "consenso=1" } });
+  assert.equal(r.status, 200);
+  assert.equal(sent.replay.length, 1);
+  assert.equal(sent.replay[0].url, "https://replay.stellakamikaze.org/ingest/v1/web/start");
+  assert.equal(sent.replay[0].xff, "203.0.113.7");
+  assert.equal(sent.replay[0].cookie, null, "il cookie del sito non va a OpenReplay");
+  assert.equal(r.headers.get("cache-control"), "no-store");
+});
+
+test("registrazioni: metodi diversi da GET e POST rifiutati, /api/rx non passa", async () => {
+  const { env, sent } = setup();
+  assert.equal((await call(env, { path: "/api/r/v1/web/i", method: "DELETE" })).status, 405);
+  assert.equal((await call(env, { path: "/api/rx" })).status, 404);
+  assert.equal(sent.replay.length, 0);
 });
