@@ -17,6 +17,7 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/assets/site.css">
 <script defer data-domain="cornetta.stellakamikaze.org" data-api="/api/e" src="/js/p.js"></script>
+<script type="module" src="/js/consenso/consenso-IROWQUFC.js" data-consenso data-progetto="13JggIUEZsiOvs5LhmMe" data-privacy="/en/privacy/" data-lingua="en"></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -36,14 +37,14 @@
 <main id="main" class="prose-page">
   <article class="wrap prose">
     <h1>What stays on your computer, and what does not.</h1>
-    <p class="lede-small">Recordings and transcripts never leave your computer. The website counts visits without cookies. The app sends a little anonymous usage data, which you can turn off.</p>
-    <p class="updated">Updated 24 October 2026.</p>
+    <p class="lede-small">Recordings and transcripts never leave your computer. The website counts visits without cookies, and records how you use the pages only if you accept. The app sends a little anonymous usage data, which you can turn off.</p>
+    <p class="updated">Updated 17 November 2026.</p>
 
     <h2>Recordings and transcripts</h2>
     <p>They stay on your computer, in the Music › Cornetta folder. Transcription uses the Mac's own speech recognition and runs on the Mac. Cornetta never sends audio or text to anyone, including its developer.</p>
 
     <h2>Website visit statistics</h2>
-    <p>The website uses <a href="https://plausible.io/">Plausible</a>, installed on a server run by Federico Nejrotti. Plausible uses no cookies and stores nothing on your device, so there is no banner.</p>
+    <p>The website uses <a href="https://plausible.io/">Plausible</a>, installed on a server run by Federico Nejrotti. Plausible uses no cookies and stores nothing on your device, so it needs no consent.</p>
     <p>It counts:</p>
     <ul>
       <li>pages visited and downloads;</li>
@@ -52,6 +53,15 @@
     </ul>
     <p>Your IP address is only used to compute a code that changes every day, so the same visit is not counted twice. The address is not stored. The data is not shared and not used for advertising.</p>
     <p>When you download Cornetta, Federico also gets a Telegram message with the system (Mac or Windows), the version, the country and the site you came from. To avoid two messages for the same download, the service keeps a code computed from your IP address (for IPv6, from the part that identifies your network) for one hour, then deletes it. The address is not stored and is not part of the message.</p>
+
+    <h2 id="recordings">Session recording, only if you accept</h2>
+    <p>If you accept in the banner, the website records how you use the pages: clicks, mouse movements, scrolling, page structure, errors, loading times, browser and device, and the country and city derived from your IP address. It shows where people get stuck and what doesn't work.</p>
+    <p>It never records what you type in form fields, email addresses and numbers written on the page, the browser console or the content of network requests.</p>
+    <p>The tool is <a href="https://openreplay.com/">OpenReplay</a>, installed on the same server as Plausible: recordings are not shared with third parties. To link the pages of one visit, OpenReplay stores a code in your browser's storage. Recordings are deleted after 30 days.</p>
+    <p>The legal basis is your consent (art. 6(1)(a) GDPR). Withdraw it whenever you like from <a href="#cookie" data-cc="show-preferencesModal">Cookie preferences</a>, also at the bottom of every page.</p>
+
+    <h2 id="cookie">Cookies</h2>
+    <p>The website uses a single cookie, "consenso": it keeps your banner choice for six months, then the banner comes back. It is a technical cookie and needs no consent. No profiling, advertising or third-party cookies.</p>
 
     <h2>App usage data</h2>
     <p>Cornetta sends a short message when one of these things happens:</p>
@@ -73,13 +83,13 @@
     <p>At launch and every 4 hours the app checks for a new version by downloading the version list from cornetta.stellakamikaze.org. From the Mac the request carries the app name and version and the version of Sparkle, the update library. From Windows it carries the app name and version, the system (Windows) and the processor type.</p>
 
     <h2>Who handles the data</h2>
-    <p>Cornetta is a personal project by <a href="https://stellakamikaze.org/">Federico Nejrotti</a>. The website and services run on Cloudflare. Visit statistics run on Federico's own server. For questions or requests use the Feedback button in the app, or open an issue <a href="https://github.com/stellakamikaze/cornetta/issues">on GitHub</a>.</p>
+    <p>Cornetta is a personal project by <a href="https://stellakamikaze.org/">Federico Nejrotti</a>. The website and services run on Cloudflare. Visit statistics and recordings run on Federico's own server, in Italy, and only Federico sees them. For questions or requests use the Feedback button in the app, or open an issue <a href="https://github.com/stellakamikaze/cornetta/issues">on GitHub</a>.</p>
   </article>
 </main>
 
 <footer>
   <div class="wrap">
-    <div>Cornetta is a project by <a href="https://stellakamikaze.org/">Federico Nejrotti</a>.<small>Recordings stay on your computer. This site counts visits without cookies. <a href="/en/privacy/">Privacy</a> · <a href="https://github.com/stellakamikaze/cornetta">Code</a></small></div>
+    <div>Cornetta is a project by <a href="https://stellakamikaze.org/">Federico Nejrotti</a>.<small>Recordings stay on your computer. This site counts visits without cookies. <a href="/en/privacy/">Privacy</a> · <a href="/en/privacy/#cookie" data-cc="show-preferencesModal">Cookie preferences</a> · <a href="https://github.com/stellakamikaze/cornetta">Code</a></small></div>
     <ul>
       <li><a href="/en/#features">Features</a></li>
       <li><a href="/en/#install">Install</a></li>

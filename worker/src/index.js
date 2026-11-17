@@ -2,6 +2,8 @@
 // e serve pagina, DMG e feed degli aggiornamenti.
 // I file statici stanno in ../public; qui passano solo /api/*, /js/p.js, /download* e le pagine HTML.
 
+import { sessioniProxy } from "./sessioni-proxy.js";
+
 // Tetto del corpo del feedback in byte: un messaggio fino a 10.000 caratteri più la diagnostica (120 righe di log).
 const MAX_BODY = 48_000;
 const KEEP_SECONDS = 90 * 24 * 3600;   // i feedback si cancellano da soli dopo 90 giorni (scripts/feedback.py legge questa riga)
@@ -58,6 +60,9 @@ export default {
       }
       return saveFeedback(request, env, ctx);
     }
+    // Registrazione delle sessioni (OpenReplay su Ganimede), solo dopo il sì nel banner:
+    // il browser parla con questo dominio, il proxy inoltra. Codice dal repo consenso.
+    if (url.pathname.startsWith("/api/r/")) return sessioniProxy(request);
     if (url.pathname === "/api/health") return json({ ok: true });
     if (url.pathname.startsWith("/api/")) return json({ ok: false, error: "Non trovato" }, 404);
     return pagina(request, env);
